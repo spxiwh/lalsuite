@@ -318,8 +318,7 @@ class IMRPhenomDTemplate(IMRPhenomBTemplate):
             self.bank.flow, f_final, 1000000 * PC_SI)
 
 
-class SEOBNRv2Template(AlignedSpinTemplate):
-
+class SEOBNRv2Template(Template):
     param_names = ("m1", "m2", "spin1z", "spin2z")
     param_formats = ("%.2f", "%.2f", "%.2f", "%.2f")
     __slots__ = ("_dur")
@@ -374,6 +373,35 @@ class SEOBNRv2Template(AlignedSpinTemplate):
         # FIXME: Is a minimal time of 1.0s too long?
         dur = 1.1 * dur + 1.0
         return dur
+
+    @classmethod
+    def from_sngl(cls, sngl, bank):
+        return cls(sngl.mass1, sngl.mass2, sngl.spin1x, sngl.spin1y, sngl.spin1z, sngl.spin2x, sngl.spin2y, sngl.spin2z, sngl.alpha1, sngl.alpha2, sngl.alpha3, sngl.alpha4, bank)
+
+    def to_sngl(self):
+        # note that we use the C version; this causes all numerical values to be initiated
+        # as 0 and all strings to be '', which is nice
+        row = SnglInspiralTable()
+        row.mass1 = self.m1
+        row.mass2 = self.m2
+        row.mtotal = self.m1 + self.m2
+        row.mchirp = self._mchirp
+        row.eta = row.mass1 * row.mass2 / (row.mtotal * row.mtotal)
+        row.tau0, row.tau3 = m1m2_to_tau0tau3(self.m1, self.m2, self.bank.flow)
+        row.f_final = self._f_final
+        row.template_duration = self._dur
+        row.spin1x = self.spin1x
+        row.spin1y = self.spin1y
+        row.spin1z = self.spin1z
+        row.spin2x = self.spin2x
+        row.spin2y = self.spin2y
+        row.spin2z = self.spin2z
+        row.alpha1 = self.theta
+        row.alpha2 = self.phi
+        row.alpha3 = self.iota
+        row.alpha4 = self.psi
+        row.sigmasq = self.sigmasq
+        return row
 
 
 class SEOBNRv2ROMDoubleSpinTemplate(SEOBNRv2Template):
