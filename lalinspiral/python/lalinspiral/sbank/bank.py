@@ -75,7 +75,7 @@ class Bank(object):
             self._moments = {}
             self.compute_match = self._metric_match
         else:
-            if tmplt_class is IMRPhenomPSkyLocMaxed:
+            if hasattr(tmplt_class, '_wf_hp'):
                 # The max over skyloc stuff needs a second cache
                 self._workspace_cache = [CreateSBankWorkspaceCache(), CreateSBankWorkspaceCache()]
             else:
