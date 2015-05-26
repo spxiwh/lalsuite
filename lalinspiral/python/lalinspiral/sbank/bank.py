@@ -174,8 +174,8 @@ class Bank(object):
                     err_msg += "coarse-value-df value lower."
                     # FIXME: This could be dealt with dynamically??
                     raise ValueError(err_msg)
-                if (1 - match) > 4.0*(1 - min_match):
-                    continue
+                if (1 - match) > 0.05 + (1 - min_match):
+                    continue 
 
             while df >= df_end:
 
@@ -195,7 +195,7 @@ class Bank(object):
 
                 # if the result is a really bad match, trust it isn't
                 # misrepresenting a good match
-                if (1 - match) > 4.0*(1 - min_match):
+                if (1 - match) > 0.05 + (1 - min_match):
                     break
 
                 # calculation converged
