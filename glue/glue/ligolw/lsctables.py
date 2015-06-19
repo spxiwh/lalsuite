@@ -44,15 +44,24 @@ from glue import offsetvector
 from glue import segments
 try:
 	from pylal.xlal.datatypes.ligotimegps import LIGOTimeGPS
-	from pylal import inject
 except ImportError:
 	# pylal is optional
-	from glue.lal import LIGOTimeGPS
+	pass
 try:
 	import lal
 except ImportError:
 	# lal is optional
 	pass
+try:
+	from lal import LIGOTimeGPS
+except ImportError:
+	# lal is optional
+	try:
+		from pylal.xlal.datatypes.ligotimegps import LIGOTimeGPS
+	except ImportError:
+		# pylal is optional too
+		from glue.lal import LIGOTimeGPS
+
 from . import ligolw
 from . import table
 from . import types as ligolwtypes
