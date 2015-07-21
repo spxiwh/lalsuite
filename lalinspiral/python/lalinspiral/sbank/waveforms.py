@@ -304,12 +304,70 @@ class IMRPhenomBTemplate(AlignedSpinTemplate):
 
 
 class IMRPhenomCTemplate(IMRPhenomBTemplate):
-
     def _compute_waveform(self, df, f_final):
         return lalsim.SimIMRPhenomCGenerateFD(0, df,
             self.m1 * MSUN_SI, self.m2 * MSUN_SI,
             self.chieff, self.bank.flow, f_final, 1000000 * PC_SI)
 
+
+class IMRPhenomDTemplate(IMRPhenomBTemplate):
+    approx_name = 'IMRPhenomD'
+    def _compute_waveform(self, df, f_final):
+        phi0 = 0  # This is a reference phase, and not an intrinsic parameter
+        lmbda1 = lmbda2 = 0 # No tidal terms here
+        ampO = -1 # Are these the correct values??
+        phaseO = -1 # Are these the correct values??
+        approx = lalsim.GetApproximantFromString( self.approx_name )
+
+        hplus_fd, hcross_fd = lalsim.SimInspiralChooseFDWaveform(
+                0, df, self.m1*MSUN_SI, self.m2*MSUN_SI, 0, 0, self.spin1z,
+                0, 0, self.spin2z, self.bank.flow, f_final, 40.0, 1e6*PC_SI, 0,
+                lmbda1, lmbda2, # irrelevant parameters for BBH
+                None, None, # non-GR parameters
+                ampO, phaseO, approx)
+
+        return hplus_fd
+
+class TaylorF2Template(IMRPhenomDTemplate):
+    approx_name = "TaylorF2"
+
+class PrecessingTemplate(Template):
+    """
+    A generic class for precessing templates. These models require the
+    full fifteen-dimensional parameter space to specify the observed
+    signal in the detector.
+    """
+    param_names = ("m1", "m2", "spin1x", "spin1y", "spin1z", "spin2x", "spin2y", "spin2z", "theta", "phi", "iota", "psi")
+    param_formats = ("%.2f","%.2f","%.2f","%.2f","%.2f","%.2f","%.2f","%.2f","%.2f","%.2f","%.2f","%.2f")
+    __slots__ = param_names + ("bank", "_dur","_mchirp","_tau0")
+
+    def __init__(self, m1, m2, spin1x, spin1y, spin1z, spin2x, spin2y, spin2z, theta, phi, iota, psi, bank):
+
+        Template.__init__(self, m1, m2, bank)
+        self.m1 = m1
+        self.m2 = m2
+        self.spin1x = spin1x
+        self.spin1y = spin1y
+        self.spin1z = spin1z
+        self.spin2x = spin2x
+        self.spin2y = spin2y
+        self.spin2z = spin2z
+        self.theta = theta
+        self.phi = phi
+        self.iota = iota
+        self.psi = psi
+        self.bank = bank
+
+        # derived quantities
+        self._mchirp = compute_mchirp(m1, m2)
+
+        # FIXME: What is an appropriate f_final for generic waveforms?
+        self.chieff,_ = SimIMRPhenomPCalculateModelParameters(self.m1, self.m2,
+                           self.bank.flow, np.sin(self.iota), float(0),
+                           np.cos(self.iota), float(self.spin1x),
+                           float(self.spin1y), float(self.spin1z),
+                           float(self.spin2x), float(self.spin2y),
+                           float(self.spin2z))[:2]
 
 class IMRPhenomDTemplate(IMRPhenomBTemplate):
 
@@ -1043,6 +1101,7 @@ class SpinTaylorT5Template(Template):
 
 waveforms = {
     "TaylorF2RedSpin": TaylorF2RedSpinTemplate,
+    "TaylorF2" : TaylorF2Template,
     "IMRPhenomB": IMRPhenomBTemplate,
     "IMRPhenomC": IMRPhenomCTemplate,
     "IMRPhenomD": IMRPhenomDTemplate,
