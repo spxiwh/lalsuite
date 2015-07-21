@@ -386,12 +386,32 @@ class IMRPhenomBTemplate(Template):
 
 
 class IMRPhenomCTemplate(IMRPhenomBTemplate):
-
     def _compute_waveform(self, df, f_final):
         return lalsim.SimIMRPhenomCGenerateFD(0, df,
             self.m1 * MSUN_SI, self.m2 * MSUN_SI,
             self.chi, self.bank.flow, f_final, 1000000 * PC_SI)
 
+
+class IMRPhenomDTemplate(IMRPhenomBTemplate):
+    approx_name = 'IMRPhenomD'
+    def _compute_waveform(self, df, f_final):
+        phi0 = 0  # This is a reference phase, and not an intrinsic parameter
+        lmbda1 = lmbda2 = 0 # No tidal terms here
+        ampO = -1 # Are these the correct values??
+        phaseO = -1 # Are these the correct values??
+        approx = lalsim.GetApproximantFromString( self.approx_name )
+
+        hplus_fd, hcross_fd = lalsim.SimInspiralChooseFDWaveform(
+                0, df, self.m1*MSUN_SI, self.m2*MSUN_SI, 0, 0, self.spin1z,
+                0, 0, self.spin2z, self.bank.flow, f_final, 40.0, 1e6*PC_SI, 0,
+                lmbda1, lmbda2, # irrelevant parameters for BBH
+                None, None, # non-GR parameters
+                ampO, phaseO, approx)
+
+        return hplus_fd
+
+class TaylorF2Template(IMRPhenomDTemplate):
+    approx_name = "TaylorF2"
 
 class PrecessingTemplate(Template):
     """
@@ -1128,8 +1148,10 @@ class SpinTaylorT5Template(Template):
 
 waveforms = {
     "TaylorF2RedSpin": TaylorF2RedSpinTemplate,
+    "TaylorF2" : TaylorF2Template,
     "IMRPhenomB": IMRPhenomBTemplate,
     "IMRPhenomC": IMRPhenomCTemplate,
+    "IMRPhenomD": IMRPhenomDTemplate,
     "IMRPhenomP": IMRPhenomPTemplate,
     "IMRPhenomPMaxed": IMRPhenomPSkyLocMaxed,
     "SEOBNRv2": SEOBNRv2Template,
