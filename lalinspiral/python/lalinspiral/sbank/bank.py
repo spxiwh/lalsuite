@@ -31,6 +31,8 @@ from lal import PI, MTSUN_SI
 from lalinspiral import CreateSBankWorkspaceCache
 from lalinspiral.sbank.psds import get_neighborhood_ASD, get_neighborhood_PSD, get_PSD, get_neighborhood_df_fmax
 
+from lalinspiral.sbank.waveforms import IMRPhenomPSkyLocMaxed
+
 class lazy_nhoods(object):
     __slots__ = ("seq", "nhood_param")
     def __init__(self, seq, nhood_param="tau0"):
@@ -73,7 +75,11 @@ class Bank(object):
             self._moments = {}
             self.compute_match = self._metric_match
         else:
-            self._workspace_cache = CreateSBankWorkspaceCache()
+            if hasattr(tmplt_class, '_wf_hp'):
+                # The max over skyloc stuff needs a second cache
+                self._workspace_cache = [CreateSBankWorkspaceCache(), CreateSBankWorkspaceCache()]
+            else:
+                self._workspace_cache = CreateSBankWorkspaceCache()
             self.compute_match = self._brute_match
 
     def __len__(self):
@@ -168,13 +174,25 @@ class Bank(object):
                 PSD = get_PSD(self.coarse_match_df, self.flow, f_max, self.noise_model)
                 match = self.compute_match(tmplt, proposal, self.coarse_match_df,
                                            PSD=PSD)
-                if (1 - match) > 4.0*(1 - min_match):
-                    continue
+                if match == 0:
+                    err_msg = "Match is 0. This might indicate that you have "
+                    err_msg += "the df value too high. Please try setting the "
+                    err_msg += "coarse-value-df value lower."
+                    # FIXME: This could be dealt with dynamically??
+                    raise ValueError(err_msg)
+                if (1 - match) > 0.05 + (1 - min_match):
+                    continue 
 
             while df >= df_end:
 
                 PSD = get_PSD(df, self.flow, f_max, self.noise_model)
                 match = self.compute_match(tmplt, proposal, df, PSD=PSD)
+                if match == 0:
+                    err_msg = "Match is 0. This might indicate that you have "
+                    err_msg += "the df value too high. Please try setting the "
+                    err_msg += "iterative-match-df-max value lower."
+                    # FIXME: This could be dealt with dynamically??
+                    raise ValueError(err_msg)
 
                 # record match and template params for highest match
                 if match > max_match:
@@ -183,7 +201,7 @@ class Bank(object):
 
                 # if the result is a really bad match, trust it isn't
                 # misrepresenting a good match
-                if (1 - match) > 4.0*(1 - min_match):
+                if (1 - match) > 0.05 + (1 - min_match):
                     break
 
                 # calculation converged
@@ -224,6 +242,7 @@ class Bank(object):
     def clear(self):
         if hasattr(self, "_workspace_cache"):
             self._workspace_cache = CreateSBankWorkspaceCache()
+
         for tmplt in self._templates:
             tmplt.clear()
 
