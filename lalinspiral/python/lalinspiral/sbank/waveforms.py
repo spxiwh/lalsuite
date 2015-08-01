@@ -330,6 +330,24 @@ class IMRPhenomDTemplate(IMRPhenomBTemplate):
 
 class TaylorF2Template(IMRPhenomDTemplate):
     approx_name = "TaylorF2"
+    def _compute_waveform(self, df, f_final):
+        phi0 = 0  # This is a reference phase, and not an intrinsic parameter
+        lmbda1 = lmbda2 = 0 # No tidal terms here
+        ampO = 0
+        phaseO = 7
+        approx = lalsim.GetApproximantFromString( self.approx_name )
+        wave_flags = lalsim.SimInspiralCreateWaveformFlags()
+        lalsim.SimInspiralSetSpinOrder(wave_flags, 5)
+
+        hplus_fd, hcross_fd = lalsim.SimInspiralChooseFDWaveform(
+                0, df, self.m1*MSUN_SI, self.m2*MSUN_SI, 0, 0, self.spin1z,
+                0, 0, self.spin2z, self.bank.flow, f_final, 40.0, 1e6*PC_SI, 0,
+                lmbda1, lmbda2, # irrelevant parameters for BBH
+                wave_flags, None, # non-GR parameters
+                ampO, phaseO, approx)
+
+        return hplus_fd
+
 
 class PrecessingTemplate(Template):
     """
