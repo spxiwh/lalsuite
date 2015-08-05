@@ -926,6 +926,22 @@ class SpinTaylorF2Template(GenericTwoSpinPrecessingTemplate):
                                     spin1x, spin1y, spin1z, spin2x, spin2y,
                                     spin2z, theta, phi, iota, psi, bank)
 
+    def _get_f_final(self):
+        return 6**-1.5 / (PI * (self.m1 + self.m2) * MTSUN_SI)  # ISCO
+
+    def _compute_waveform_comps(self, df, f_final):
+        hplus_fd, hcross_fd = \
+          super(SpinTaylorF2Template,self)._compute_waveform_comps(df, f_final)
+        # Must set values greater than _get_f_final to 0
+        act_f_max = self._get_f_final()
+        f_max_idx = int(act_f_max / df + 0.999)
+        hplus_fd.data.data[f_max_idx:] = 0
+        hcross_fd.data.data[f_max_idx:] = 0
+
+        return hplus_fd, hcross_fd
+
+
+
 class SpinTaylorT2FourierTemplate(GenericTwoSpinPrecessingTemplate):
     approximant = "SpinTaylorT2Fourier"
 
