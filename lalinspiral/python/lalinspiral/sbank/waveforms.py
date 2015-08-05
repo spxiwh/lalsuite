@@ -302,6 +302,34 @@ class IMRPhenomBTemplate(AlignedSpinTemplate):
             self.m1 * MSUN_SI, self.m2 * MSUN_SI, self.chieff,
             7) + 1000 * (self.m1 + self.m2) * MTSUN_SI
 
+<<<<<<< HEAD
+=======
+    @classmethod
+    def from_sim(cls, sim, bank):
+        return cls(sim.mass1, sim.mass2, sim.spin1z, sim.spin2z, bank)
+
+    @classmethod
+    def from_sngl(cls, sngl, bank):
+        return cls(sngl.mass1, sngl.mass2, sngl.spin1z, sngl.spin2z, bank)
+
+    def to_sngl(self):
+        # note that we use the C version; this causes all numerical values to be initiated
+        # as 0 and all strings to be '', which is nice
+        row = SnglInspiralTable()
+        row.mass1 = self.m1
+        row.mass2 = self.m2
+        row.mtotal = self.m1 + self.m2
+        row.mchirp = self._mchirp
+        row.eta = row.mass1 * row.mass2 / (row.mtotal * row.mtotal)
+        row.tau0, row.tau3 = m1m2_to_tau0tau3(self.m1, self.m2, self.bank.flow)
+        row.template_duration = self._dur
+        row.spin1z = self.spin1z
+        row.spin2z = self.spin2z
+        row.sigmasq = self.sigmasq
+
+        return row
+
+>>>>>>> Fixes to TaylorF2 Template in sbank
 
 class IMRPhenomCTemplate(IMRPhenomBTemplate):
     def _compute_waveform(self, df, f_final):
@@ -330,6 +358,10 @@ class IMRPhenomDTemplate(IMRPhenomBTemplate):
 
 class TaylorF2Template(IMRPhenomDTemplate):
     approx_name = "TaylorF2"
+
+    def _get_f_final(self):
+        return 6**-1.5 / (PI * (self.m1 + self.m2) * MTSUN_SI)  # ISCO
+
     def _compute_waveform(self, df, f_final):
         phi0 = 0  # This is a reference phase, and not an intrinsic parameter
         lmbda1 = lmbda2 = 0 # No tidal terms here
@@ -345,6 +377,11 @@ class TaylorF2Template(IMRPhenomDTemplate):
                 lmbda1, lmbda2, # irrelevant parameters for BBH
                 wave_flags, None, # non-GR parameters
                 ampO, phaseO, approx)
+
+        # Must set values greater than _get_f_final to 0
+        act_f_max = self._get_f_final()
+        f_max_idx = int(act_f_max / df + 0.999)
+        hplus_fd.data.data[f_max_idx:] = 0
 
         return hplus_fd
 
