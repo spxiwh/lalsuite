@@ -140,7 +140,7 @@ class Template(object):
     * Provide a classmethod from_sim, which creates an instance based on
       a sim_inspiral object.
     """
-    __slots__ = ("m1", "m2", "bank", "_mchirp", "_tau0", "_wf", "_metric", "sigmasq", "is_seed_point", "_f_final", "_upper_frequency")
+    __slots__ = ("m1", "m2", "bank", "_mchirp", "_tau0", "_wf", "_metric", "sigmasq", "is_seed_point", "_f_final", "_fhigh_max")
 
     def __init__(self, m1, m2, bank):
         self._wf = {}
@@ -376,7 +376,6 @@ class IMRPhenomBTemplate(Template):
         row.mchirp = self._mchirp
         row.eta = row.mass1 * row.mass2 / (row.mtotal * row.mtotal)
         row.tau0, row.tau3 = m1m2_to_tau0tau3(self.m1, self.m2, self.bank.flow)
-        row.f_final = self.f_final
         row.template_duration = self._dur
         row.spin1z = self.spin1z
         row.spin2z = self.spin2z
@@ -412,6 +411,10 @@ class IMRPhenomDTemplate(IMRPhenomBTemplate):
 
 class TaylorF2Template(IMRPhenomDTemplate):
     approx_name = "TaylorF2"
+
+    def _get_f_final(self):
+        return 6**-1.5 / (PI * (self.m1 + self.m2) * MTSUN_SI)  # ISCO
+
     def _compute_waveform(self, df, f_final):
         phi0 = 0  # This is a reference phase, and not an intrinsic parameter
         lmbda1 = lmbda2 = 0 # No tidal terms here
@@ -427,6 +430,11 @@ class TaylorF2Template(IMRPhenomDTemplate):
                 lmbda1, lmbda2, # irrelevant parameters for BBH
                 wave_flags, None, # non-GR parameters
                 ampO, phaseO, approx)
+
+        # Must set values greater than _get_f_final to 0
+        act_f_max = self._get_f_final()
+        f_max_idx = int(act_f_max / df + 0.999)
+        hplus_fd.data.data[f_max_idx:] = 0
 
         return hplus_fd
 
