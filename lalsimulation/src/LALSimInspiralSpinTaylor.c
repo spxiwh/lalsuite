@@ -2692,7 +2692,7 @@ static int XLALSimInspiralSpinTaylorDriver(
     if( fRef < LAL_REAL4_EPS )
     {
         fS = fStart;
-        fE = 0.;
+        fE = fISCO;
         /* Evolve the dynamical variables */
         n = XLALSimInspiralSpinTaylorPNEvolveOrbit(&V, &Phi,
                 &S1x, &S1y, &S1z, &S2x, &S2y, &S2z, 
@@ -2714,7 +2714,7 @@ static int XLALSimInspiralSpinTaylorDriver(
     else if( fabs(fRef - fStart) < LAL_REAL4_EPS )
     {
         fS = fStart;
-        fE = 0.;
+        fE = fISCO;
         /* Evolve the dynamical variables */
         n = XLALSimInspiralSpinTaylorPNEvolveOrbit(&V, &Phi,
                 &S1x, &S1y, &S1z, &S2x, &S2y, &S2z, 
@@ -2758,7 +2758,7 @@ static int XLALSimInspiralSpinTaylorDriver(
 
         /* Integrate forward to end of waveform */
         fS = fRef;
-        fE = 0.;
+        fE = fISCO;
         n = XLALSimInspiralSpinTaylorPNEvolveOrbit(&V2, &Phi2,
                 &S1x2, &S1y2, &S1z2, &S2x2, &S2y2, &S2z2, 
                 &LNhatx2, &LNhaty2, &LNhatz2, &E1x2, &E1y2, &E1z2,
