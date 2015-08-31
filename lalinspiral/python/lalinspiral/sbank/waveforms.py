@@ -799,7 +799,12 @@ class SpinTaylorF2Template(GenericTwoSpinPrecessingTemplate):
     def __init__(self, m1, m2, spin1x, spin1y, spin1z, spin2x, spin2y, spin2z,
                  theta, phi, iota, psi, bank):
         # Single-spin approximant
-        spin2x = spin2y = spin2z = 0
+        if abs(spin2x) > 0 or abs(spin2y) > 0 or\
+                                            abs(spin1x) > 0 or abs(spin1y) > 0:
+            self.approximant = "SpinTaylorF2"
+            spin2x = spin2y = spin2z = 0
+        else:
+            self.approximant = "TaylorF2"
         super(SpinTaylorF2Template,self).__init__(m1, m2,
                                     spin1x, spin1y, spin1z, spin2x, spin2y,
                                     spin2z, theta, phi, iota, psi, bank)
@@ -817,8 +822,6 @@ class SpinTaylorF2Template(GenericTwoSpinPrecessingTemplate):
         hcross_fd.data.data[f_max_idx:] = 0
 
         return hplus_fd, hcross_fd
-
-
 
 class SpinTaylorT2FourierTemplate(GenericTwoSpinPrecessingTemplate):
     approximant = "SpinTaylorT2Fourier"
