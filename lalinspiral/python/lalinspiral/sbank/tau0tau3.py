@@ -463,14 +463,13 @@ def precessing_spin_param_generator(flow, **kwargs):
     """
     Currently a stub to test precessing template generation.
     """
-    # For now these are ignored
-    spin1_bounds = kwargs.pop('spin1', (-0.9, 0.9))
-    spin2_bounds = kwargs.pop('spin2', (-0.9, 0.9))
+    spin1_bounds = kwargs.pop('spin1', (0., 0.9))
+    spin2_bounds = kwargs.pop('spin2', (0., 0.9))
 
     for mass1, mass2 in urand_tau0tau3_generator(flow, **kwargs):
         # Choose the rest from hardcoded limits
-        spin1mag = uniform(0, 0.9)
-        spin2mag = uniform(0, 0.9)
+        spin1mag = uniform(*spin1_bounds)
+        spin2mag = uniform(*spin2_bounds)
         spin1ang1 = uniform(0, numpy.pi)
         spin1ang2 = uniform(0, 2*numpy.pi)
         spin2ang1 = uniform(0, numpy.pi)
