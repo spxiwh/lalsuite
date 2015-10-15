@@ -383,44 +383,6 @@ class TaylorF2Template(IMRPhenomDTemplate):
         return hplus_fd
 
 
-class PrecessingTemplate(Template):
-    """
-    A generic class for precessing templates. These models require the
-    full fifteen-dimensional parameter space to specify the observed
-    signal in the detector.
-    """
-    param_names = ("m1", "m2", "spin1x", "spin1y", "spin1z", "spin2x", "spin2y", "spin2z", "theta", "phi", "iota", "psi")
-    param_formats = ("%.2f","%.2f","%.2f","%.2f","%.2f","%.2f","%.2f","%.2f","%.2f","%.2f","%.2f","%.2f")
-    __slots__ = param_names + ("bank", "_dur","_mchirp","_tau0")
-
-    def __init__(self, m1, m2, spin1x, spin1y, spin1z, spin2x, spin2y, spin2z, theta, phi, iota, psi, bank):
-
-        Template.__init__(self, m1, m2, bank)
-        self.m1 = m1
-        self.m2 = m2
-        self.spin1x = spin1x
-        self.spin1y = spin1y
-        self.spin1z = spin1z
-        self.spin2x = spin2x
-        self.spin2y = spin2y
-        self.spin2z = spin2z
-        self.theta = theta
-        self.phi = phi
-        self.iota = iota
-        self.psi = psi
-        self.bank = bank
-
-        # derived quantities
-        self._mchirp = compute_mchirp(m1, m2)
-
-        # FIXME: What is an appropriate f_final for generic waveforms?
-        self.chieff,_ = SimIMRPhenomPCalculateModelParameters(self.m1, self.m2,
-                           self.bank.flow, np.sin(self.iota), float(0),
-                           np.cos(self.iota), float(self.spin1x),
-                           float(self.spin1y), float(self.spin1z),
-                           float(self.spin2x), float(self.spin2y),
-                           float(self.spin2z))[:2]
-
 class IMRPhenomDTemplate(IMRPhenomBTemplate):
 
     __slots__ = IMRPhenomBTemplate.__slots__
@@ -431,87 +393,6 @@ class IMRPhenomDTemplate(IMRPhenomBTemplate):
             self.m1 * MSUN_SI, self.m2 * MSUN_SI,
             self.spin1z, self.spin2z,
             self.bank.flow, f_final, 1000000 * PC_SI)
-
-class IMRPhenomPSkyLocMaxed(IMRPhenomPTemplate):
-    __slots__ = ("_wf_hp", "_wf_hc", "_hpsigmasq", "_hcsigmasq", "_hphccorr")
-
-    def __init__(self, *args, **kwargs):
-        super(IMRPhenomPSkyLocMaxed, self).__init__(*args, **kwargs)
-        self._wf = {}
-        self._metric = None
-        self.sigmasq = 0.
-        self._wf_hp = {}
-        self._wf_hc = {} 
-        self._hpsigmasq = {}
-        self._hcsigmasq = {}
-        self._hphccorr = {}
-
-    def _compute_waveform_comps(self, df, f_final):
-
-        approx = lalsim.GetApproximantFromString( "IMRPhenomP" )
-        phi0 = 0  # This is a reference phase, and not an intrinsic parameter
-        lmbda1 = lmbda2 = 0 # No tidal terms in model
-        ampO = 0 # Matching what Alejandro chose here
-        phaseO = 7 # are these PN orders correct for PhenomP?
-        hplus_fd, hcross_fd = lalsim.SimInspiralChooseFDWaveform(
-            phi0, df,
-            self.m1*MSUN_SI, self.m2*MSUN_SI,
-            self.spin1x, self.spin1y, self.spin1z, self.spin2x, self.spin2y, self.spin2z,
-            self.bank.flow, f_final,
-            40.0, # reference frequency, want it to be fixed to a constant value always and forever
-            1e6*PC_SI, # irrelevant parameter for banks/banksims
-            self.iota,
-            lmbda1, lmbda2, # irrelevant parameters for BBH
-            None, None, # non-GR parameters
-            ampO, phaseO, approx)
-
-        return hplus_fd, hcross_fd
-
-    def get_whitened_normalized_comps(self, df, ASD=None, PSD=None):
-        """
-        Return a COMPLEX8FrequencySeries of h+ and hx, whitened by the
-        given ASD and normalized. The waveform is not zero-padded to
-        match the length of the ASD, so its normalization depends on
-        its own length.
-        """
-        if not self._wf_hp.has_key(df):
-            # Clear self._wf as it won't be needed any more if calling here
-            self._wf = {}
-            # Generate a new wf
-            hp, hc = self._compute_waveform_comps(df, self.f_final)
-            if ASD is None:
-                ASD = PSD**0.5
-            if hp.data.length > len(ASD):
-                raise ValueError("waveform has length greater than ASD; cannot whiten")
-            arr_view_hp = hp.data.data
-            arr_view_hc = hc.data.data
-
-            # Whiten
-            arr_view_hp[:] /= ASD[:hp.data.length]
-            arr_view_hp[:int(self.bank.flow / df)] = 0.
-            arr_view_hp[int(self.f_final/df) : hp.data.length] = 0.
-
-            arr_view_hc[:] /= ASD[:hc.data.length]
-            arr_view_hc[:int(self.bank.flow / df)] = 0.
-            arr_view_hc[int(self.f_final/df) : hc.data.length] = 0.
-
-            # Get normalization factors
-            self._hpsigmasq[df] = compute_sigmasq(arr_view_hp, df)
-            self._hcsigmasq[df] = compute_sigmasq(arr_view_hc, df)
-            self._hphccorr[df] = compute_correlation(arr_view_hp, arr_view_hc, df)
-
-            self._wf_hp[df] = FrequencySeries_to_COMPLEX8FrequencySeries(hp)
-            self._wf_hc[df] = FrequencySeries_to_COMPLEX8FrequencySeries(hc)
-
-
-        return self._wf_hp[df], self._wf_hc[df], self._hpsigmasq[df], self._hcsigmasq[df], self._hphccorr[df]
-
-    def brute_match(self, other, df, workspace_cache, **kwargs):
-        # Template generates hp and hc
-        hp, hc, hpsigmasq, hcsigmasq, hphccorr = self.get_whitened_normalized_comps(df, **kwargs)
-        # Proposal generates h(t), sky loc is later discarded.
-        proposal = other.get_whitened_normalized(df, **kwargs)
-        return InspiralSBankComputeMatchMaxSkyLoc(hp, hc, hpsigmasq, hcsigmasq, hphccorr, proposal, workspace_cache[0], workspace_cache[1])
 
 class SEOBNRv2Template(Template):
     param_names = ("m1", "m2", "spin1z", "spin2z")
@@ -996,6 +877,115 @@ class IMRPhenomPTemplate(PrecessingTemplate):
         # project onto detector
         return project_hplus_hcross(hplus_fd, hcross_fd, self.theta, self.phi, self.psi)
 
+    @classmethod
+    def from_sngl(cls, sngl, bank):
+        return cls(sngl.mass1, sngl.mass2, sngl.spin1x, sngl.spin1y, sngl.spin1z, sngl.spin2x, sngl.spin2y, sngl.spin2z, sngl.alpha1, sngl.alpha2, sngl.alpha3, sngl.alpha4, bank)
+
+    def to_sngl(self):
+        # note that we use the C version; this causes all numerical values to be initiated
+        # as 0 and all strings to be '', which is nice
+        row = SnglInspiralTable()
+        row.mass1 = self.m1
+        row.mass2 = self.m2
+        row.mtotal = self.m1 + self.m2
+        row.mchirp = self._mchirp
+        row.eta = row.mass1 * row.mass2 / (row.mtotal * row.mtotal)
+        row.tau0, row.tau3 = m1m2_to_tau0tau3(self.m1, self.m2, self.bank.flow)
+        row.f_final = self.f_final
+        row.template_duration = self._dur
+        row.spin1x = self.spin1x
+        row.spin1y = self.spin1y
+        row.spin1z = self.spin1z
+        row.spin2x = self.spin2x
+        row.spin2y = self.spin2y
+        row.spin2z = self.spin2z
+        row.alpha1 = self.theta
+        row.alpha2 = self.phi
+        row.alpha3 = self.iota
+        row.alpha4 = self.psi
+        row.sigmasq = self.sigmasq
+        return row
+
+class IMRPhenomPSkyLocMaxed(IMRPhenomPTemplate):
+    __slots__ = ("_wf_hp", "_wf_hc", "_hpsigmasq", "_hcsigmasq", "_hphccorr")
+
+    def __init__(self, *args, **kwargs):
+        super(IMRPhenomPSkyLocMaxed, self).__init__(*args, **kwargs)
+        self._wf = {}
+        self._metric = None
+        self.sigmasq = 0.
+        self._wf_hp = {}
+        self._wf_hc = {}
+        self._hpsigmasq = {}
+        self._hcsigmasq = {}
+        self._hphccorr = {}
+
+    def _compute_waveform_comps(self, df, f_final):
+
+        approx = lalsim.GetApproximantFromString( "IMRPhenomP" )
+        phi0 = 0  # This is a reference phase, and not an intrinsic parameter
+        lmbda1 = lmbda2 = 0 # No tidal terms in model
+        ampO = 0 # Matching what Alejandro chose here
+        phaseO = 7 # are these PN orders correct for PhenomP?
+        hplus_fd, hcross_fd = lalsim.SimInspiralChooseFDWaveform(
+            phi0, df,
+            self.m1*MSUN_SI, self.m2*MSUN_SI,
+            self.spin1x, self.spin1y, self.spin1z, self.spin2x, self.spin2y, self.spin2z,
+            self.bank.flow, f_final,
+            40.0, # reference frequency, want it to be fixed to a constant value always and forever
+            1e6*PC_SI, # irrelevant parameter for banks/banksims
+            self.iota,
+            lmbda1, lmbda2, # irrelevant parameters for BBH
+            None, None, # non-GR parameters
+            ampO, phaseO, approx)
+
+        return hplus_fd, hcross_fd
+
+    def get_whitened_normalized_comps(self, df, ASD=None, PSD=None):
+        """
+        Return a COMPLEX8FrequencySeries of h+ and hx, whitened by the
+        given ASD and normalized. The waveform is not zero-padded to
+        match the length of the ASD, so its normalization depends on
+        its own length.
+        """
+        if not self._wf_hp.has_key(df):
+            # Clear self._wf as it won't be needed any more if calling here
+            self._wf = {}
+            # Generate a new wf
+            hp, hc = self._compute_waveform_comps(df, self.f_final)
+            if ASD is None:
+                ASD = PSD**0.5
+            if hp.data.length > len(ASD):
+                raise ValueError("waveform has length greater than ASD; cannot whiten")
+            arr_view_hp = hp.data.data
+            arr_view_hc = hc.data.data
+
+            # Whiten
+            arr_view_hp[:] /= ASD[:hp.data.length]
+            arr_view_hp[:int(self.bank.flow / df)] = 0.
+            arr_view_hp[int(self.f_final/df) : hp.data.length] = 0.
+
+            arr_view_hc[:] /= ASD[:hc.data.length]
+            arr_view_hc[:int(self.bank.flow / df)] = 0.
+            arr_view_hc[int(self.f_final/df) : hc.data.length] = 0.
+
+            # Get normalization factors
+            self._hpsigmasq[df] = compute_sigmasq(arr_view_hp, df)
+            self._hcsigmasq[df] = compute_sigmasq(arr_view_hc, df)
+            self._hphccorr[df] = compute_correlation(arr_view_hp, arr_view_hc, df)
+
+            self._wf_hp[df] = FrequencySeries_to_COMPLEX8FrequencySeries(hp)
+            self._wf_hc[df] = FrequencySeries_to_COMPLEX8FrequencySeries(hc)
+
+
+        return self._wf_hp[df], self._wf_hc[df], self._hpsigmasq[df], self._hcsigmasq[df], self._hphccorr[df]
+
+    def brute_match(self, other, df, workspace_cache, **kwargs):
+        # Template generates hp and hc
+        hp, hc, hpsigmasq, hcsigmasq, hphccorr = self.get_whitened_normalized_comps(df, **kwargs)
+        # Proposal generates h(t), sky loc is later discarded.
+        proposal = other.get_whitened_normalized(df, **kwargs)
+        return InspiralSBankComputeMatchMaxSkyLoc(hp, hc, hpsigmasq, hcsigmasq, hphccorr, proposal, workspace_cache[0], workspace_cache[1])
 
 class SpinTaylorT4Template(Template):
 
