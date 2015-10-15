@@ -302,8 +302,6 @@ class IMRPhenomBTemplate(AlignedSpinTemplate):
             self.m1 * MSUN_SI, self.m2 * MSUN_SI, self.chieff,
             7) + 1000 * (self.m1 + self.m2) * MTSUN_SI
 
-<<<<<<< HEAD
-=======
     @classmethod
     def from_sim(cls, sim, bank):
         return cls(sim.mass1, sim.mass2, sim.spin1z, sim.spin2z, bank)
@@ -329,7 +327,6 @@ class IMRPhenomBTemplate(AlignedSpinTemplate):
 
         return row
 
->>>>>>> Fixes to TaylorF2 Template in sbank
 
 class IMRPhenomCTemplate(IMRPhenomBTemplate):
     def _compute_waveform(self, df, f_final):
