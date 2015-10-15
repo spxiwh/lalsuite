@@ -2422,6 +2422,7 @@ int XLALSimInspiralInitialConditionsPrecessingApproxs(
     *S1z=-S1xIn*sin(inclIn)+S1zIn*cos(inclIn);
     break;
   case LAL_SIM_INSPIRAL_FRAME_AXIS_VIEW:
+    break;
   default:
     break;
   }
@@ -2696,7 +2697,7 @@ int XLALSimInspiralChooseTDWaveform(
 	    spin2[0]=S2x; spin2[1]=S2y; spin2[2]=S2z;
 	    iTmp=i;
 	    fTmp = (f_ref > 0.) ? f_ref : f_min;
-	    XLALSimInspiralInitialConditionsPrecessingApproxs(&i,&S1x,&S1y,&S1z,&S2x,&S2y,&S2z,iTmp,spin1[0],spin1[1],spin1[2],spin2[0],spin2[1],spin2[2],m1,m2,fTmp,XLALSimInspiralGetFrameAxis(waveFlags));
+	    XLALSimInspiralInitialConditionsPrecessingApproxs(&i,&S1x,&S1y,&S1z,&S2x,&S2y,&S2z,iTmp,spin1[0],spin1[1],spin1[2],spin2[0],spin2[1],spin2[2],m1,m2,fTmp,LAL_SIM_INSPIRAL_FRAME_AXIS_ORBITAL_L);
             LNhatx = sin(i);
             LNhaty = 0.;
             LNhatz = cos(i);
