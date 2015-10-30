@@ -891,6 +891,33 @@ class IMRPhenomPTemplate(PrecessingTemplate):
         row.sigmasq = self.sigmasq
         return row
 
+class IMRPhenomPv2Template(IMRPhenomPTemplate):
+    """
+    IMRPhenomPv2 precessing IMR model.
+    """
+    def _compute_waveform(self, df, f_final):
+
+        approx = lalsim.GetApproximantFromString( "IMRPhenomPv2" )
+        phi0 = 0  # what is phi0?
+        lmbda1 = lmbda2 = 0
+        ampO = 3
+        phaseO = 7 # are these PN orders correct for PhenomP?
+        hplus_fd, hcross_fd = lalsim.SimInspiralChooseFDWaveform(
+            phi0, df,
+            self.m1*MSUN_SI, self.m2*MSUN_SI,
+            self.spin1x, self.spin1y, self.spin1z, self.spin2x, self.spin2y, self.spin2z,
+            self.bank.flow, f_final,
+            40.0, # reference frequency, want it to be fixed to a constant value always and forever
+            1e6*PC_SI, # irrelevant parameter for banks/banksims
+            self.iota,
+            lmbda1, lmbda2, # irrelevant parameters for BBH
+            None, None, # non-GR parameters
+            ampO, phaseO, approx)
+
+        # project onto detector
+        return project_hplus_hcross(hplus_fd, hcross_fd, self.theta, self.phi, self.psi)
+
+
 class IMRPhenomPSkyLocMaxed(IMRPhenomPTemplate):
     __slots__ = ("_wf_hp", "_wf_hc", "_hpsigmasq", "_hcsigmasq", "_hphccorr")
 
@@ -971,6 +998,32 @@ class IMRPhenomPSkyLocMaxed(IMRPhenomPTemplate):
         # Proposal generates h(t), sky loc is later discarded.
         proposal = other.get_whitened_normalized(df, **kwargs)
         return InspiralSBankComputeMatchMaxSkyLoc(hp, hc, hpsigmasq, hcsigmasq, hphccorr, proposal, workspace_cache[0], workspace_cache[1])
+
+class IMRPhenomPv2SkyLocMaxed(IMRPhenomPv2Template):
+    """
+    SkyLocMaxed for PhenomPv2
+    """
+    def _compute_waveform_comps(self, df, f_final):
+
+        approx = lalsim.GetApproximantFromString( "IMRPhenomPv2" )
+        phi0 = 0  # This is a reference phase, and not an intrinsic parameter
+        lmbda1 = lmbda2 = 0 # No tidal terms in model
+        ampO = 0 # Matching what Alejandro chose here
+        phaseO = 7 # are these PN orders correct for PhenomP?
+        hplus_fd, hcross_fd = lalsim.SimInspiralChooseFDWaveform(
+            phi0, df,
+            self.m1*MSUN_SI, self.m2*MSUN_SI,
+            self.spin1x, self.spin1y, self.spin1z, self.spin2x, self.spin2y, self.spin2z,
+            self.bank.flow, f_final,
+            40.0, # reference frequency, want it to be fixed to a constant value always and forever
+            1e6*PC_SI, # irrelevant parameter for banks/banksims
+            self.iota,
+            lmbda1, lmbda2, # irrelevant parameters for BBH
+            None, None, # non-GR parameters
+            ampO, phaseO, approx)
+
+        return hplus_fd, hcross_fd
+
 
 class SpinTaylorT4Template(Template):
 
@@ -1153,6 +1206,8 @@ waveforms = {
     "IMRPhenomD": IMRPhenomDTemplate,
     "IMRPhenomP": IMRPhenomPTemplate,
     "IMRPhenomPMaxed": IMRPhenomPSkyLocMaxed,
+    "IMRPhenomPv2": IMRPhenomPv2Template,
+    "IMRPhenomPv2Maxed": IMRPhenomPv2SkyLocMaxed,
     "SEOBNRv2": SEOBNRv2Template,
     "SEOBNRv2_ROM_DoubleSpin": SEOBNRv2ROMDoubleSpinTemplate,
     "EOBNRv2": EOBNRv2Template,
