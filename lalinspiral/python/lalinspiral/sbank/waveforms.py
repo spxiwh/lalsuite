@@ -150,7 +150,8 @@ class Template(object):
 
         self._wf = {}
         self._metric = None
-        self.sigmasq = 0.
+        self.sigmasq = None
+        self.sigmasq_dict = {}
         self._mchirp = compute_mchirp(m1, m2)
         self._tau0 = compute_tau0( self._mchirp, bank.flow)
         self._f_final = None
@@ -211,12 +212,25 @@ class Template(object):
             arr_view[int(self.f_final/df) : wf.data.length] = 0.
 
             # normalize
-            self.sigmasq = compute_sigmasq(arr_view, df)
-            arr_view[:] /= self.sigmasq**0.5
+            if not self.sigmasq_dict.has_key(df):
+                self.sigmasq_dict[df] = compute_sigmasq(arr_view, df)
+                if self.sigmasq is None:
+                    self.sigmasq = self.sigmasq_dict[df]
+            arr_view[:] /= self.sigmasq_dict**0.5
 
             # down-convert to single precision
             self._wf[df] = FrequencySeries_to_COMPLEX8FrequencySeries(wf)
         return self._wf[df]
+
+    def get_sigmasq(self, df, ASD=None, PSD=None):
+        """
+        Return a COMPLEX8FrequencySeries of the waveform, whitened by the
+        given ASD and normalized. The waveform is not zero-padded to
+        match the length of the ASD, so its normalization depends on
+        its own length.
+        """
+        self.get_whitened_normalized(df, ASD=ASD, PSD=PSD)
+        return self.sigmasq_dict[df]
 
     def metric_match(self, other, df, **kwargs):
         raise NotImplementedError
@@ -244,6 +258,9 @@ class AlignedSpinTemplate(Template):
         self.spin1z = float(spin1z)
         self.spin2z = float(spin2z)
         self.chieff = lalsim.SimIMRPhenomBComputeChi(m1, m2, spin1z, spin2z)
+    
+    def set_optimal_values(cls):
+        self.__init__(self.m1, self.m2, 1., 1.)
 
     @classmethod
     def from_sim(cls, sim, bank):
@@ -269,7 +286,10 @@ class AlignedSpinTemplate(Template):
         row.template_duration = self._dur
         row.spin1z = self.spin1z
         row.spin2z = self.spin2z
-        row.sigmasq = self.sigmasq
+        if self.sigmasq is None:
+            row.sigmasq = 0.
+        else:
+            row.sigmasq = self.sigmasq
 
         return row
 

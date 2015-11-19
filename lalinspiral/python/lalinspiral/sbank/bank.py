@@ -133,7 +133,7 @@ class Bank(object):
             tmplt.clear()
         return match
 
-    def covers(self, proposal, min_match):
+    def covers(self, proposal, min_match, test_local_amplitude=True):
         """
         Return (max_match, template) where max_match is either (i) the
         best found match if max_match < min_match or (ii) the match of
@@ -160,6 +160,22 @@ class Bank(object):
         if self.fhigh_max:
             f_max = min(f_max, self.fhigh_max)
         df_start = max(df_end, self.iterative_match_df_max)
+
+        if test_local_magnitude:
+            tlm_rel_mag = 10
+            if self.coarse_match_df:
+                tlm_df = self.coarse_match_df
+            else:
+                tlm_df = df_start 
+            PSD = get_PSD(tlm_df, self.flow, f_max, self.noise_model)
+            sigma_proposal = proposal.get_sigmasq(tlm_df, PSD=PSD)
+            opt_proposal = copy.deepcopy(proposal)
+            opt_proposal.set_optimal_values()
+            sigma_opt = opt_proposal.get_opt_sigmasq(tlm_df, PSD=PSD)
+            print sigma_opt, sigma_proposal
+            if sigma_opt / sigma_proposal > tlm_rel_mag:
+                print "REJECTED", proposal.m1, proposal.m2, proposal.spin1z, proposal.spin2z
+                return 1.0, None
 
         # find and test matches
         for tmplt in tmpbank:
