@@ -2476,7 +2476,26 @@ int XLALSimInspiralSpinTaylorT2(
 	);
 
 
-
+int XLALSimInspiralSpinTaylorDriver(
+        REAL8TimeSeries **hplus,        /**< +-polarization waveform */
+        REAL8TimeSeries **hcross,       /**< x-polarization waveform */
+        REAL8TimeSeries **V,
+        REAL8TimeSeries **S1x,
+        REAL8TimeSeries **S1y,
+        REAL8TimeSeries **S1z,
+        REAL8TimeSeries **S2x,
+        REAL8TimeSeries **S2y,
+        REAL8TimeSeries **S2z,
+        REAL8TimeSeries **LNhatx,
+        REAL8TimeSeries **LNhaty,
+        REAL8TimeSeries **LNhatz,
+    REAL8 phiRef, REAL8 v0, REAL8 deltaT,
+    REAL8 m1, REAL8 m2, REAL8 fStart, REAL8 fRef, REAL8 r,
+    REAL8 s1x, REAL8 s1y, REAL8 s1z, REAL8 s2x, REAL8 s2y, REAL8 s2z,
+    REAL8 lnhatx, REAL8 lnhaty, REAL8 lnhatz, REAL8 e1x, REAL8 e1y, REAL8 e1z,
+    REAL8 lambda1, REAL8 lambda2, REAL8 quadparam1, REAL8 quadparam2,
+    LALSimInspiralSpinOrder spinO, LALSimInspiralTidalOrder tideO,
+    int phaseO, int amplitudeO, Approximant approx);
 
 
 /**

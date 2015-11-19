@@ -179,14 +179,6 @@ static int XLALSimInspiralSpinTaylorT2Setup(
     REAL8 fStart, REAL8 fEnd, REAL8 lambda1, REAL8 lambda2,
     REAL8 quadparam1, REAL8 quadparam2, LALSimInspiralSpinOrder spinO,
     LALSimInspiralTidalOrder tideO, INT4 phaseO);
-static int XLALSimInspiralSpinTaylorDriver(REAL8TimeSeries **hplus,
-    REAL8TimeSeries **hcross, REAL8 phiRef, REAL8 v0, REAL8 deltaT,
-    REAL8 m1, REAL8 m2, REAL8 fStart, REAL8 fRef, REAL8 r,
-    REAL8 s1x, REAL8 s1y, REAL8 s1z, REAL8 s2x, REAL8 s2y, REAL8 s2z,
-    REAL8 lnhatx, REAL8 lnhaty, REAL8 lnhatz, REAL8 e1x, REAL8 e1y, REAL8 e1z,
-    REAL8 lambda1, REAL8 lambda2, REAL8 quadparam1, REAL8 quadparam2,
-    LALSimInspiralSpinOrder spinO, LALSimInspiralTidalOrder tideO,
-    int phaseO, int amplitudeO, Approximant approx);
 static int XLALSimInspiralSpinTaylorPNEvolveOrbitIrregularIntervals(
     REAL8Array **yout, REAL8 m1, REAL8 m2, REAL8 fStart, REAL8 fEnd, REAL8 s1x,
     REAL8 s1y, REAL8 s1z, REAL8 s2x, REAL8 s2y, REAL8 s2z, REAL8 lnhatx,
@@ -1208,7 +1200,7 @@ int XLALSimInspiralSpinTaylorPNEvolveOrbit(
 
     // Report termination condition and final frequency
     // Will only report this info if '4' bit of lalDebugLevel is 1
-    fTerm = yout->data[2*len+cutlen-1] / LAL_PI / Msec;
+    fTerm = out->data[2*len+cutlen-1] / LAL_PI / Msec;
     XLALPrintInfo("XLAL Info - %s: integration terminated with code %d. The final GW frequency reached was %g\n", __func__, intreturn, fTerm);
 
     /* allocate memory for output vectors */
@@ -2197,11 +2189,24 @@ int XLALSimInspiralSpinTaylorT4(
 	int amplitudeO                  /**< twice PN amplitude order */
 	)
 {
+    REAL8TimeSeries **V, **S1x, **S1y, **S1z, **S2x, **S2y, **S2z, **LNhatx, **LNhaty, **LNhatz;
+
     Approximant approx = SpinTaylorT4;
-    int n = XLALSimInspiralSpinTaylorDriver(hplus, hcross, phiRef, v0, deltaT,
+    int n = XLALSimInspiralSpinTaylorDriver(hplus, hcross, V, S1x, S1y, S1z, S2x, S2y, S2z, LNhatx, LNhaty, LNhatz, phiRef, v0, deltaT,
             m1, m2, fStart, fRef, r, s1x, s1y, s1z, s2x, s2y, s2z,
             lnhatx, lnhaty, lnhatz, e1x, e1y, e1z, lambda1, lambda2,
             quadparam1, quadparam2, spinO, tideO, phaseO, amplitudeO, approx);
+    XLALDestroyREAL8TimeSeries(*V);
+    XLALDestroyREAL8TimeSeries(*S1x);
+    XLALDestroyREAL8TimeSeries(*S1y);
+    XLALDestroyREAL8TimeSeries(*S1z);
+    XLALDestroyREAL8TimeSeries(*S2x);
+    XLALDestroyREAL8TimeSeries(*S2y);
+    XLALDestroyREAL8TimeSeries(*S2z);
+    XLALDestroyREAL8TimeSeries(*LNhatx);
+    XLALDestroyREAL8TimeSeries(*LNhaty);
+    XLALDestroyREAL8TimeSeries(*LNhatz);
+
 
     return n;
 }
@@ -2239,11 +2244,24 @@ int XLALSimInspiralSpinTaylorT1(
 	int amplitudeO                  /**< twice PN amplitude order */
 	)
 {
+    REAL8TimeSeries **V, **S1x, **S1y, **S1z, **S2x, **S2y, **S2z, **LNhatx, **LNhaty, **LNhatz;
+
     Approximant approx = SpinTaylorT1;
-    int n = XLALSimInspiralSpinTaylorDriver(hplus, hcross, phiRef, v0, deltaT,
+    int n = XLALSimInspiralSpinTaylorDriver(hplus, hcross, V, S1x, S1y, S1z, S2x, S2y, S2z, LNhatx, LNhaty, LNhatz, phiRef, v0, deltaT,
             m1, m2, fStart, fRef, r, s1x, s1y, s1z, s2x, s2y, s2z,
             lnhatx, lnhaty, lnhatz, e1x, e1y, e1z, lambda1, lambda2,
             quadparam1, quadparam2, spinO, tideO, phaseO, amplitudeO, approx);
+
+    XLALDestroyREAL8TimeSeries(*V);
+    XLALDestroyREAL8TimeSeries(*S1x);
+    XLALDestroyREAL8TimeSeries(*S1y);
+    XLALDestroyREAL8TimeSeries(*S1z);
+    XLALDestroyREAL8TimeSeries(*S2x);
+    XLALDestroyREAL8TimeSeries(*S2y);
+    XLALDestroyREAL8TimeSeries(*S2z);
+    XLALDestroyREAL8TimeSeries(*LNhatx);
+    XLALDestroyREAL8TimeSeries(*LNhaty);
+    XLALDestroyREAL8TimeSeries(*LNhatz);
 
     return n;
 }
@@ -2307,11 +2325,23 @@ int XLALSimInspiralSpinTaylorT2(
 	int amplitudeO                  /**< twice PN amplitude order */
 	)
 {
+    REAL8TimeSeries **V, **S1x, **S1y, **S1z, **S2x, **S2y, **S2z, **LNhatx, **LNhaty, **LNhatz;
     Approximant approx = SpinTaylorT2;
-    int n = XLALSimInspiralSpinTaylorDriver(hplus, hcross, phiRef, v0, deltaT,
+    int n = XLALSimInspiralSpinTaylorDriver(hplus, hcross, V, S1x, S1y, S1z, S2x, S2y, S2z, LNhatx, LNhaty, LNhatz, phiRef, v0, deltaT,
             m1, m2, fStart, fRef, r, s1x, s1y, s1z, s2x, s2y, s2z,
             lnhatx, lnhaty, lnhatz, e1x, e1y, e1z, lambda1, lambda2,
             quadparam1, quadparam2, spinO, tideO, phaseO, amplitudeO, approx);
+
+    XLALDestroyREAL8TimeSeries(*V);
+    XLALDestroyREAL8TimeSeries(*S1x);
+    XLALDestroyREAL8TimeSeries(*S1y);
+    XLALDestroyREAL8TimeSeries(*S1z);
+    XLALDestroyREAL8TimeSeries(*S2x);
+    XLALDestroyREAL8TimeSeries(*S2y);
+    XLALDestroyREAL8TimeSeries(*S2z);
+    XLALDestroyREAL8TimeSeries(*LNhatx);
+    XLALDestroyREAL8TimeSeries(*LNhaty);
+    XLALDestroyREAL8TimeSeries(*LNhatz);
 
     return n;
 }
@@ -2319,9 +2349,19 @@ int XLALSimInspiralSpinTaylorT2(
 /**
  * Internal driver function to generate any of SpinTaylorT1/T2/T4
  */
-static int XLALSimInspiralSpinTaylorDriver(
+int XLALSimInspiralSpinTaylorDriver(
 	REAL8TimeSeries **hplus,        /**< +-polarization waveform */
 	REAL8TimeSeries **hcross,       /**< x-polarization waveform */
+        REAL8TimeSeries **V,
+        REAL8TimeSeries **S1x,
+        REAL8TimeSeries **S1y,
+        REAL8TimeSeries **S1z,
+        REAL8TimeSeries **S2x,
+        REAL8TimeSeries **S2y,
+        REAL8TimeSeries **S2z,
+        REAL8TimeSeries **LNhatx,
+        REAL8TimeSeries **LNhaty,
+        REAL8TimeSeries **LNhatz,
 	REAL8 phiRef,                   /**< orbital phase at reference pt. */
 	REAL8 v0,                       /**< tail gauge term (default = 1) */
 	REAL8 deltaT,                   /**< sampling interval (s) */
@@ -2353,8 +2393,8 @@ static int XLALSimInspiralSpinTaylorDriver(
     Approximant approx              /**< PN approximant (SpinTaylorT1/T2/T4) */
 	)
 {
-    REAL8TimeSeries *V, *Phi, *S1x, *S1y, *S1z, *S2x, *S2y, *S2z;
-    REAL8TimeSeries *LNhatx, *LNhaty, *LNhatz, *E1x, *E1y, *E1z;
+    REAL8TimeSeries *Phi;
+    REAL8TimeSeries *E1x, *E1y, *E1z;
     int status, n;
     unsigned int i;
     REAL8 fS, fE, phiShift;
@@ -2387,9 +2427,9 @@ static int XLALSimInspiralSpinTaylorDriver(
         fS = fStart;
         fE = fISCO;
         /* Evolve the dynamical variables */
-        n = XLALSimInspiralSpinTaylorPNEvolveOrbit(&V, &Phi,
-                &S1x, &S1y, &S1z, &S2x, &S2y, &S2z, 
-                &LNhatx, &LNhaty, &LNhatz, &E1x, &E1y, &E1z, 
+        n = XLALSimInspiralSpinTaylorPNEvolveOrbit(V, &Phi,
+                S1x, S1y, S1z, S2x, S2y, S2z, 
+                LNhatx, LNhaty, LNhatz, &E1x, &E1y, &E1z, 
                 deltaT, m1, m2, fS, fE, s1x, s1y, s1z, s2x, s2y, s2z, 
                 lnhatx, lnhaty, lnhatz, e1x, e1y, e1z, lambda1, lambda2,
                 quadparam1, quadparam2, spinO, tideO, phaseO, approx);
@@ -2409,9 +2449,9 @@ static int XLALSimInspiralSpinTaylorDriver(
         fS = fStart;
         fE = fISCO;
         /* Evolve the dynamical variables */
-        n = XLALSimInspiralSpinTaylorPNEvolveOrbit(&V, &Phi,
-                &S1x, &S1y, &S1z, &S2x, &S2y, &S2z, 
-                &LNhatx, &LNhaty, &LNhatz, &E1x, &E1y, &E1z, 
+        n = XLALSimInspiralSpinTaylorPNEvolveOrbit(V, &Phi,
+                S1x, S1y, S1z, S2x, S2y, S2z, 
+                LNhatx, LNhaty, LNhatz, &E1x, &E1y, &E1z, 
                 deltaT, m1, m2, fS, fE, s1x, s1y, s1z, s2x, s2y, s2z, 
                 lnhatx, lnhaty, lnhatz, e1x, e1y, e1z, lambda1, lambda2,
                 quadparam1, quadparam2, spinO, tideO, phaseO, approx);
@@ -2467,17 +2507,17 @@ static int XLALSimInspiralSpinTaylorDriver(
         }
 
         /* Stitch 2nd set of vectors onto 1st set. Free 2nd set. */
-        V = appendTSandFree(V1, V2); 
+        (*V) = appendTSandFree(V1, V2); 
         Phi = appendTSandFree(Phi1, Phi2);
-        S1x = appendTSandFree(S1x1, S1x2);
-        S1y = appendTSandFree(S1y1, S1y2);
-        S1z = appendTSandFree(S1z1, S1z2);
-        S2x = appendTSandFree(S2x1, S2x2);
-        S2y = appendTSandFree(S2y1, S2y2);
-        S2z = appendTSandFree(S2z1, S2z2);
-        LNhatx = appendTSandFree(LNhatx1, LNhatx2);
-        LNhaty = appendTSandFree(LNhaty1, LNhaty2);
-        LNhatz = appendTSandFree(LNhatz1, LNhatz2);
+        (*S1x) = appendTSandFree(S1x1, S1x2);
+        (*S1y) = appendTSandFree(S1y1, S1y2);
+        (*S1z) = appendTSandFree(S1z1, S1z2);
+        (*S2x) = appendTSandFree(S2x1, S2x2);
+        (*S2y) = appendTSandFree(S2y1, S2y2);
+        (*S2z) = appendTSandFree(S2z1, S2z2);
+        (*LNhatx) = appendTSandFree(LNhatx1, LNhatx2);
+        (*LNhaty) = appendTSandFree(LNhaty1, LNhaty2);
+        (*LNhatz) = appendTSandFree(LNhatz1, LNhatz2);
         E1x = appendTSandFree(E1x1, E1x2);
         E1y = appendTSandFree(E1y1, E1y2);
         E1z = appendTSandFree(E1z1, E1z2);
@@ -2486,21 +2526,11 @@ static int XLALSimInspiralSpinTaylorDriver(
 
     /* Use the dynamical variables to build the polarizations */
     status = XLALSimInspiralPrecessingPolarizationWaveforms(hplus, hcross,
-            V, Phi, S1x, S1y, S1z, S2x, S2y, S2z, LNhatx, LNhaty, LNhatz, 
+            *V, Phi, *S1x, *S1y, *S1z, *S2x, *S2y, *S2z, *LNhatx, *LNhaty, *LNhatz, 
             E1x, E1y, E1z, m1, m2, r, v0, amplitudeO);
 
     /* Destroy vectors of dynamical variables, check for errors then exit */
-    XLALDestroyREAL8TimeSeries(V);
     XLALDestroyREAL8TimeSeries(Phi);
-    XLALDestroyREAL8TimeSeries(S1x);
-    XLALDestroyREAL8TimeSeries(S1y);
-    XLALDestroyREAL8TimeSeries(S1z);
-    XLALDestroyREAL8TimeSeries(S2x);
-    XLALDestroyREAL8TimeSeries(S2y);
-    XLALDestroyREAL8TimeSeries(S2z);
-    XLALDestroyREAL8TimeSeries(LNhatx);
-    XLALDestroyREAL8TimeSeries(LNhaty);
-    XLALDestroyREAL8TimeSeries(LNhatz);
     XLALDestroyREAL8TimeSeries(E1x);
     XLALDestroyREAL8TimeSeries(E1y);
     XLALDestroyREAL8TimeSeries(E1z);
