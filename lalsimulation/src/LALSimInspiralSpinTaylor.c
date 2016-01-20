@@ -1200,7 +1200,7 @@ int XLALSimInspiralSpinTaylorPNEvolveOrbit(
 
     // Report termination condition and final frequency
     // Will only report this info if '4' bit of lalDebugLevel is 1
-    fTerm = out->data[2*len+cutlen-1] / LAL_PI / Msec;
+    fTerm = yout->data[2*len+cutlen-1] / LAL_PI / Msec;
     XLALPrintInfo("XLAL Info - %s: integration terminated with code %d. The final GW frequency reached was %g\n", __func__, intreturn, fTerm);
 
     /* allocate memory for output vectors */
