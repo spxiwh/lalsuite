@@ -2189,23 +2189,23 @@ int XLALSimInspiralSpinTaylorT4(
 	int amplitudeO                  /**< twice PN amplitude order */
 	)
 {
-    REAL8TimeSeries **V, **S1x, **S1y, **S1z, **S2x, **S2y, **S2z, **LNhatx, **LNhaty, **LNhatz;
+    REAL8TimeSeries *V, *S1x, *S1y, *S1z, *S2x, *S2y, *S2z, *LNhatx, *LNhaty, *LNhatz;
 
     Approximant approx = SpinTaylorT4;
-    int n = XLALSimInspiralSpinTaylorDriver(hplus, hcross, V, S1x, S1y, S1z, S2x, S2y, S2z, LNhatx, LNhaty, LNhatz, phiRef, v0, deltaT,
+    int n = XLALSimInspiralSpinTaylorDriver(hplus, hcross, &V, &S1x, &S1y, &S1z, &S2x, &S2y, &S2z, &LNhatx, &LNhaty, &LNhatz, phiRef, v0, deltaT,
             m1, m2, fStart, fRef, r, s1x, s1y, s1z, s2x, s2y, s2z,
             lnhatx, lnhaty, lnhatz, e1x, e1y, e1z, lambda1, lambda2,
             quadparam1, quadparam2, spinO, tideO, phaseO, amplitudeO, approx);
-    XLALDestroyREAL8TimeSeries(*V);
-    XLALDestroyREAL8TimeSeries(*S1x);
-    XLALDestroyREAL8TimeSeries(*S1y);
-    XLALDestroyREAL8TimeSeries(*S1z);
-    XLALDestroyREAL8TimeSeries(*S2x);
-    XLALDestroyREAL8TimeSeries(*S2y);
-    XLALDestroyREAL8TimeSeries(*S2z);
-    XLALDestroyREAL8TimeSeries(*LNhatx);
-    XLALDestroyREAL8TimeSeries(*LNhaty);
-    XLALDestroyREAL8TimeSeries(*LNhatz);
+    XLALDestroyREAL8TimeSeries(V);
+    XLALDestroyREAL8TimeSeries(S1x);
+    XLALDestroyREAL8TimeSeries(S1y);
+    XLALDestroyREAL8TimeSeries(S1z);
+    XLALDestroyREAL8TimeSeries(S2x);
+    XLALDestroyREAL8TimeSeries(S2y);
+    XLALDestroyREAL8TimeSeries(S2z);
+    XLALDestroyREAL8TimeSeries(LNhatx);
+    XLALDestroyREAL8TimeSeries(LNhaty);
+    XLALDestroyREAL8TimeSeries(LNhatz);
 
 
     return n;
@@ -2244,24 +2244,24 @@ int XLALSimInspiralSpinTaylorT1(
 	int amplitudeO                  /**< twice PN amplitude order */
 	)
 {
-    REAL8TimeSeries **V, **S1x, **S1y, **S1z, **S2x, **S2y, **S2z, **LNhatx, **LNhaty, **LNhatz;
+    REAL8TimeSeries *V, *S1x, *S1y, *S1z, *S2x, *S2y, *S2z, *LNhatx, *LNhaty, *LNhatz;
 
     Approximant approx = SpinTaylorT1;
-    int n = XLALSimInspiralSpinTaylorDriver(hplus, hcross, V, S1x, S1y, S1z, S2x, S2y, S2z, LNhatx, LNhaty, LNhatz, phiRef, v0, deltaT,
+    int n = XLALSimInspiralSpinTaylorDriver(hplus, hcross, &V, &S1x, &S1y, &S1z, &S2x, &S2y, &S2z, &LNhatx, &LNhaty, &LNhatz, phiRef, v0, deltaT,
             m1, m2, fStart, fRef, r, s1x, s1y, s1z, s2x, s2y, s2z,
             lnhatx, lnhaty, lnhatz, e1x, e1y, e1z, lambda1, lambda2,
             quadparam1, quadparam2, spinO, tideO, phaseO, amplitudeO, approx);
 
-    XLALDestroyREAL8TimeSeries(*V);
-    XLALDestroyREAL8TimeSeries(*S1x);
-    XLALDestroyREAL8TimeSeries(*S1y);
-    XLALDestroyREAL8TimeSeries(*S1z);
-    XLALDestroyREAL8TimeSeries(*S2x);
-    XLALDestroyREAL8TimeSeries(*S2y);
-    XLALDestroyREAL8TimeSeries(*S2z);
-    XLALDestroyREAL8TimeSeries(*LNhatx);
-    XLALDestroyREAL8TimeSeries(*LNhaty);
-    XLALDestroyREAL8TimeSeries(*LNhatz);
+    XLALDestroyREAL8TimeSeries(V);
+    XLALDestroyREAL8TimeSeries(S1x);
+    XLALDestroyREAL8TimeSeries(S1y);
+    XLALDestroyREAL8TimeSeries(S1z);
+    XLALDestroyREAL8TimeSeries(S2x);
+    XLALDestroyREAL8TimeSeries(S2y);
+    XLALDestroyREAL8TimeSeries(S2z);
+    XLALDestroyREAL8TimeSeries(LNhatx);
+    XLALDestroyREAL8TimeSeries(LNhaty);
+    XLALDestroyREAL8TimeSeries(LNhatz);
 
     return n;
 }
@@ -2325,23 +2325,23 @@ int XLALSimInspiralSpinTaylorT2(
 	int amplitudeO                  /**< twice PN amplitude order */
 	)
 {
-    REAL8TimeSeries **V, **S1x, **S1y, **S1z, **S2x, **S2y, **S2z, **LNhatx, **LNhaty, **LNhatz;
+    REAL8TimeSeries *V, *S1x, *S1y, *S1z, *S2x, *S2y, *S2z, *LNhatx, *LNhaty, *LNhatz;
     Approximant approx = SpinTaylorT2;
-    int n = XLALSimInspiralSpinTaylorDriver(hplus, hcross, V, S1x, S1y, S1z, S2x, S2y, S2z, LNhatx, LNhaty, LNhatz, phiRef, v0, deltaT,
+    int n = XLALSimInspiralSpinTaylorDriver(hplus, hcross, &V, &S1x, &S1y, &S1z, &S2x, &S2y, &S2z, &LNhatx, &LNhaty, &LNhatz, phiRef, v0, deltaT,
             m1, m2, fStart, fRef, r, s1x, s1y, s1z, s2x, s2y, s2z,
             lnhatx, lnhaty, lnhatz, e1x, e1y, e1z, lambda1, lambda2,
             quadparam1, quadparam2, spinO, tideO, phaseO, amplitudeO, approx);
 
-    XLALDestroyREAL8TimeSeries(*V);
-    XLALDestroyREAL8TimeSeries(*S1x);
-    XLALDestroyREAL8TimeSeries(*S1y);
-    XLALDestroyREAL8TimeSeries(*S1z);
-    XLALDestroyREAL8TimeSeries(*S2x);
-    XLALDestroyREAL8TimeSeries(*S2y);
-    XLALDestroyREAL8TimeSeries(*S2z);
-    XLALDestroyREAL8TimeSeries(*LNhatx);
-    XLALDestroyREAL8TimeSeries(*LNhaty);
-    XLALDestroyREAL8TimeSeries(*LNhatz);
+    XLALDestroyREAL8TimeSeries(V);
+    XLALDestroyREAL8TimeSeries(S1x);
+    XLALDestroyREAL8TimeSeries(S1y);
+    XLALDestroyREAL8TimeSeries(S1z);
+    XLALDestroyREAL8TimeSeries(S2x);
+    XLALDestroyREAL8TimeSeries(S2y);
+    XLALDestroyREAL8TimeSeries(S2z);
+    XLALDestroyREAL8TimeSeries(LNhatx);
+    XLALDestroyREAL8TimeSeries(LNhaty);
+    XLALDestroyREAL8TimeSeries(LNhatz);
 
     return n;
 }
