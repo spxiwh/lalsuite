@@ -18,6 +18,7 @@
 from __future__ import division
 
 import bisect
+import copy
 from operator import attrgetter
 
 import numpy as np
@@ -133,7 +134,7 @@ class Bank(object):
             tmplt.clear()
         return match
 
-    def covers(self, proposal, min_match):
+    def covers(self, proposal, min_match, test_local_magnitude=True):
         """
         Return (max_match, template) where max_match is either (i) the
         best found match if max_match < min_match or (ii) the match of
@@ -160,6 +161,20 @@ class Bank(object):
         if self.fhigh_max:
             f_max = min(f_max, self.fhigh_max)
         df_start = max(df_end, self.iterative_match_df_max)
+
+        if test_local_magnitude:
+            # We work in sigmasq so just apply a square factor here.
+            tlm_rel_mag = 5 ** 2
+            if self.coarse_match_df:
+                tlm_df = self.coarse_match_df
+            else:
+                tlm_df = df_start 
+            PSD = get_PSD(tlm_df, self.flow, f_max, self.noise_model)
+            sigma_proposal = proposal.get_sigmasq(tlm_df, PSD=PSD)
+            opt_proposal = proposal.produce_optimal_copy()
+            sigma_opt = opt_proposal.get_sigmasq(tlm_df, PSD=PSD)
+            if sigma_opt / sigma_proposal > tlm_rel_mag:
+                return 1.0, None
 
         # find and test matches
         for tmplt in tmpbank:
