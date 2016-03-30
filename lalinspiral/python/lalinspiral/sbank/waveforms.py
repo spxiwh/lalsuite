@@ -649,7 +649,7 @@ class PrecessingTemplate(Template):
                            np.cos(self.iota), float(self.spin1x),
                            float(self.spin1y), float(self.spin1z),
                            float(self.spin2x), float(self.spin2y),
-                           float(self.spin2z))[:2]
+                           float(self.spin2z), lalsim.IMRPhenomPv2_V)[:2]
 
         # FIXME: Is this appropriate?
         self._dur = lalsim.SimInspiralTaylorF2ReducedSpinChirpTime(\
@@ -838,7 +838,7 @@ class IMRPhenomPTemplate(PrecessingTemplate):
 
         PrecessingTemplate.__init__(self, m1, m2, spin1x, spin1y, spin1z, spin2x, spin2y, spin2z, theta, phi, iota, psi, bank)
         # derived quantities
-        self.chieff, self.chipre = SimIMRPhenomPCalculateModelParameters(self.m1, self.m2, self.bank.flow, np.sin(self.iota), float(0), np.cos(self.iota), float(self.spin1x), float(self.spin1y), float(self.spin1z), float(self.spin2x), float(self.spin2y), float(self.spin2z))[:2] # FIXME are the other four parameters informative?
+        self.chieff, self.chipre = SimIMRPhenomPCalculateModelParameters(self.m1, self.m2, self.bank.flow, np.sin(self.iota), float(0), np.cos(self.iota), float(self.spin1x), float(self.spin1y), float(self.spin1z), float(self.spin2x), float(self.spin2y), float(self.spin2z), lalsim.IMRPhenomPv2_V)[:2] # FIXME are the other four parameters informative?
 
         self._dur = self._imrdur()
         # FIXME: is this ffinal and dur appropriate for PhenomP?
