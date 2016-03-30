@@ -143,6 +143,23 @@ class Bank(object):
         max_match = 0
         template = None
 
+        def L2PNnorm(x,eta):
+            return eta/np.sqrt(x)*(1 + (3/2. + eta/6.)*x + (27/8. - 19/8.*eta - eta*eta/24.)*x*x)
+
+        def xofLmin(eta):
+            eta2 = eta*eta
+            return 2*(9. + eta - np.sqrt(1539. - 1008*eta - 17*eta2))/(3*(-81. + 57.*eta + eta2))
+
+        M = proposal.m1 + proposal.m2
+        eta = proposal.m1 * proposal.m2 / (M * M)
+        xofL = xofLmin(eta)
+        Jmin = L2PNnorm(xofL, eta)
+        Jmin += (proposal.m1*proposal.m1*proposal.spin1z +\
+                 proposal.m2*proposal.m2*proposal.spin2z) / (M * M)
+        if Jmin < 0:
+            # This is the bad case!
+            return 1.0, None
+
         # find templates in the bank "near" this tmplt
         prop_nhd = getattr(proposal, self.nhood_param)
         low, high = _find_neighborhood(self._nhoods, prop_nhd, self.nhood_size)
