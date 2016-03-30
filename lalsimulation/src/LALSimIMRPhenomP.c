@@ -493,9 +493,9 @@ static int PhenomPCore(
       // PhenomD uses FinalSpin0815() to calculate the final spin if the spins are aligned.
       // We use a generalized version of FinalSpin0815() that includes the in-plane spin chip.
       finspin = FinalSpinIMRPhenomD_all_in_plane_spin_on_larger_BH(m1, m2, chi1_l, chi2_l, chip);
-      if( fabs(finspin) > 1.0 ) {
-        XLAL_PRINT_WARNING("Warning: final spin magnitude %g > 1. Setting final spin magnitude = 1.", finspin);
-        finspin = copysign(1.0, finspin);
+      if( fabs(finspin) > 0.99 ) {
+        XLAL_PRINT_WARNING("Warning: final spin magnitude %g > 1. Setting final spin magnitude = 0.99", finspin);
+        finspin = copysign(0.99, finspin);
       }
 
       // IMRPhenomD assumes that m1 >= m2.
