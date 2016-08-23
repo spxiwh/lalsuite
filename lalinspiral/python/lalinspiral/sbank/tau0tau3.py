@@ -572,8 +572,9 @@ def double_spin_precessing_param_generator(flow, tmplt_class, bank, **kwargs):
         phi = uniform(0, 2*numpy.pi)
         psi = uniform(0, 2*numpy.pi)
         iota = uniform(0, numpy.pi)
+        orb_phase = uniform(0, 2*numpy.pi)
         yield tmplt_class(mass1, mass2, spin1x, spin1y, spin1z, spin2x, spin2y,
-                          spin2z, theta, phi, iota, psi, bank=bank)
+                          spin2z, theta, phi, iota, psi, orb_phase, bank=bank)
 
 def single_spin_precessing_param_generator(flow, tmplt_class, bank, **kwargs):
     """
@@ -619,4 +620,6 @@ proposals = {"IMRPhenomB":IMRPhenomB_param_generator,
              "SpinTaylorT4":SpinTaylorT4_param_generator,
              "SpinTaylorF2":single_spin_precessing_param_generator,
              "SpinTaylorT2Fourier":double_spin_precessing_param_generator,
-             "SEOBNRv3":double_spin_precessing_param_generator}
+             "SEOBNRv3":double_spin_precessing_param_generator,
+             "EOBNRv2HM_ROM":double_spin_precessing_param_generator,
+             "EOBNRv2HM_ROM_PhaseMax":double_spin_precessing_param_generator}
