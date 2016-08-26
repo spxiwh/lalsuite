@@ -147,6 +147,7 @@ pybin_scripts = \
 	lalapps_cohPTF_hipe \
 	lalapps_coh_PTF_post_processing \
 	lalapps_cbc_sbank \
+        lalapps_cbc_sbank_incmodded \
 	lalapps_cbc_sbank_choose_mchirp_boundaries \
 	lalapps_cbc_sbank_splitter \
 	lalapps_cbc_sbank_merge_sims \
