@@ -26,6 +26,7 @@ from glue.iterutils import inorder, uniq
 from lal import PI, MTSUN_SI
 from lalinspiral import CreateSBankWorkspaceCache
 from lalinspiral.sbank.psds import get_neighborhood_ASD, get_neighborhood_PSD, get_PSD, get_neighborhood_df_fmax
+from . import waveforms
 
 class lazy_nhoods(object):
     __slots__ = ("seq", "nhood_param")
@@ -111,6 +112,18 @@ class Bank(object):
         for template in newtmplts:
             # Mark all templates as seed points
             template.is_seed_point = True
+        self._templates.extend(newtmplts)
+        self._templates.sort(key=attrgetter(self.nhood_param))
+
+    def add_from_hdf(self, hdf_fp):
+        num_points = len(hdf_fp['mass1'])
+        newtmplts=[]
+        for idx in xrange(num_points):
+            approx_id = hdf_fp['approximant_id'][idx]
+            approx = hdf_fp.attrs['approx_num_{}'.format(approx_id)]
+            tmplt_class = waveforms.waveforms[approx]
+            newtmplts.append(tmplt_class.from_hdf(hdf_fp, idx, self))
+            newtmplts[-1].is_seed_point=True
         self._templates.extend(newtmplts)
         self._templates.sort(key=attrgetter(self.nhood_param))
 
