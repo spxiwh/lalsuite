@@ -81,6 +81,8 @@ class Bank(object):
             self._workspace_cache = [CreateSBankWorkspaceCache(), CreateSBankWorkspaceCache()]
             self.compute_match = self._brute_match
 
+        self._cached_hdf_read = {}
+
     def __len__(self):
         return len(self._templates)
 
@@ -118,11 +120,23 @@ class Bank(object):
     def add_from_hdf(self, hdf_fp):
         num_points = len(hdf_fp['mass1'])
         newtmplts=[]
+        approxs = {}
         for idx in xrange(num_points):
-            approx_id = hdf_fp['approximant_id'][idx]
-            approx = hdf_fp.attrs['approx_num_{}'.format(approx_id)]
+            if not idx % 100000:
+                tmp = {}
+                end_idx = min(idx+100000, num_points)
+                for name in hdf_fp:
+                    tmp[name] = hdf_fp[name][idx:end_idx]
+            c_idx = idx % 100000
+            approx_id = tmp['approximant_id'][c_idx]
+
+            try:
+                approx = approxs[approx_id]
+            except:
+                approx = hdf_fp.attrs['approx_num_{}'.format(approx_id)]
+                approxs[approx_id] = approx
             tmplt_class = waveforms.waveforms[approx]
-            newtmplts.append(tmplt_class.from_hdf(hdf_fp, idx, self))
+            newtmplts.append(tmplt_class.from_dict(tmp, c_idx, self))
             newtmplts[-1].is_seed_point=True
         self._templates.extend(newtmplts)
         self._templates.sort(key=attrgetter(self.nhood_param))
@@ -178,7 +192,9 @@ class Bank(object):
         tmpbank.sort(key=lambda b: abs( getattr(b, self.nhood_param) - prop_nhd))
 
         # set parameters of match calculation that are optimized for this block
-        df_end, f_max = get_neighborhood_df_fmax(tmpbank + [proposal], self.flow)
+        # NOTE: Here I didn't see the point of a large comparison, just compare
+        # to proposal.
+        df_end, f_max = get_neighborhood_df_fmax([proposal], self.flow)
         if self.fhigh_max:
             f_max = min(f_max, self.fhigh_max)
         df_start = max(df_end, self.iterative_match_df_max)
