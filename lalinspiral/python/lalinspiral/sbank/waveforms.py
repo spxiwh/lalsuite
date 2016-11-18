@@ -281,6 +281,12 @@ class AlignedSpinTemplate(object):
                    float(hdf_fp['spin1z'][idx]), float(hdf_fp['spin2z'][idx]),
                    bank, flow=float(hdf_fp['f_lower'][idx]))
 
+    @classmethod
+    def from_dict(cls, params, idx, bank):
+        return cls(float(params['mass1'][idx]), float(params['mass2'][idx]),
+                   float(params['spin1z'][idx]), float(params['spin2z'][idx]),
+                   bank, flow=float(params['f_lower'][idx]))
+
     def to_sngl(self):
         # All numerical values are initiated as 0 and all strings as ''
         row = SnglInspiralTable()
@@ -484,6 +490,15 @@ class SEOBNRv2ROMDoubleSpinHITemplate(SEOBNRv2Template):
 
 class SEOBNRv4Template(IMRAlignedSpinTemplate):
     approximant = "SEOBNRv4"
+
+#    def _get_dur(self):
+#        seff = lalsim.SimIMRPhenomBComputeChi(self.m1, self.m2,
+#                                              self.spin1z, self.spin2z)
+#        dur = lalsim.SimIMRSEOBNRv2ChirpTimeSingleSpin(
+#                self.m1 * MSUN_SI, self.m2 * MSUN_SI, seff, self.flow)
+        # add a 10% to be consistent with PyCBC's duration estimate,
+        # may want to FIXME if that changes
+#        return dur * 1.1 + 0.1
 
     def _get_dur(self):
         dur = lalsim.SimIMRSEOBNRv4ROMTimeOfFrequency(
