@@ -587,7 +587,6 @@ class TaylorF2Template(InspiralAlignedSpinTemplate):
                 0., 0., 0.,
                 df, self.flow, f_final, self.bank.flow,
                 LALpars, approx)
-        lal.DestroyDict(LALpars)
 
         # Must set values greater than _get_f_final to 0
         act_f_max = self._get_f_final()
