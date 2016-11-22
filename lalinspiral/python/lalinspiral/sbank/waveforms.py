@@ -197,9 +197,19 @@ class AlignedSpinTemplate(object):
         self.sigmasq = 0.
         self._mchirp = compute_mchirp(m1, m2)
         self._tau0 = compute_tau0(self._mchirp, self.flow)
-        self._dur = self._get_dur()
+        self._dur = None
         self._f_final = None
         self._fhigh_max = bank.fhigh_max
+
+    @property
+    def dur(self):
+        if self._dur is None:
+            self._dur = self._get_dur()
+        return self._dur
+
+    @dur.setter
+    def dur(self, new_val):
+        self._dur = new_val
 
     def optimize_flow(self, flow_min, fhigh_max, noise_model, df=0.1,
                       sigma_frac=0.99):
@@ -299,7 +309,7 @@ class AlignedSpinTemplate(object):
         row.tau0, row.tau3 = m1m2_to_tau0tau3(self.m1, self.m2, self.flow)
         if not self.bank.no_f_final:
             row.f_final = self.f_final
-        row.template_duration = self._dur
+        row.template_duration = self.dur
         row.spin1z = self.spin1z
         row.spin2z = self.spin2z
         row.sigmasq = self.sigmasq
@@ -315,7 +325,7 @@ class AlignedSpinTemplate(object):
         new_tmplt['mass2'] = self.m2
         new_tmplt['spin1z'] = self.spin1z
         new_tmplt['spin2z'] = self.spin2z
-        new_tmplt['template_duration'] = self._dur
+        new_tmplt['template_duration'] = self.dur
         new_tmplt['f_lower'] = self.flow
         approx_id = lalsim.GetApproximantFromString(self.approximant)
         new_tmplt['approximant_id'] = approx_id
@@ -533,7 +543,6 @@ class TaylorF2RedSpinTemplate(InspiralAlignedSpinTemplate):
         AlignedSpinTemplate.__init__(self, m1, m2, spin1z, spin2z, bank,
                                      flow=flow)
         self.chired = lalsim.SimInspiralTaylorF2ReducedSpinComputeChi(m1, m2, spin1z, spin2z)
-        self._dur = self._get_dur()
         self._eta = m1*m2/(m1+m2)**2
         self._theta0, self._theta3, self._theta3s = compute_chirptimes(self._mchirp, self._eta, self.chired, self.flow)
 
@@ -760,7 +769,7 @@ class PrecessingSpinTemplate(AlignedSpinTemplate):
         row.tau0, row.tau3 = m1m2_to_tau0tau3(self.m1, self.m2, self.flow)
         if not self.bank.no_f_final:
             row.f_final = self.f_final
-        row.template_duration = self._dur
+        row.template_duration = self.dur
         row.spin1x = self.spin1x
         row.spin1y = self.spin1y
         row.spin1z = self.spin1z
@@ -861,7 +870,7 @@ class SpinTaylorF2Template(InspiralPrecessingSpinTemplate):
         row.tau0, row.tau3 = m1m2_to_tau0tau3(self.m1, self.m2, self.flow)
         if not self.bank.no_f_final:
             row.f_final = self.f_final
-        row.template_duration = self._dur
+        row.template_duration = self.dur
         row.spin1x = self.spin1x
         row.spin1y = self.spin1y
         row.spin1z = self.spin1z
