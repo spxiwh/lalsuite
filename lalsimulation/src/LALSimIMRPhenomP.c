@@ -1156,6 +1156,8 @@ static int PhenomPCoreOneFrequency(
     break;
   }
 
+  fprintf(stderr, "PHENOMPARAMS: %e %e %e %e %e\n", fHz, alpha, epsilon, cBetah, sBetah);
+
   const REAL8 cBetah2 = cBetah*cBetah;
   const REAL8 cBetah3 = cBetah2*cBetah;
   const REAL8 cBetah4 = cBetah3*cBetah;
