@@ -178,6 +178,8 @@ class AlignedSpinTemplate(object):
         self.m2 = float(m2)
         self.spin1z = float(spin1z)
         self.spin2z = float(spin2z)
+        self.template_hash = hash((self.m1, self.m2, self.spin1z,
+                                   self.spin2z))
         self.chieff = lalsim.SimIMRPhenomBComputeChi(self.m1, self.m2,
                                                      self.spin1z, self.spin2z)
         self.bank = bank
@@ -322,6 +324,7 @@ class AlignedSpinTemplate(object):
         new_tmplt['mass2'] = self.m2
         new_tmplt['spin1z'] = self.spin1z
         new_tmplt['spin2z'] = self.spin2z
+        new_tmplt['template_hash'] = self.template_hash
         new_tmplt['template_duration'] = self.dur
         new_tmplt['f_lower'] = self.flow
         new_tmplt['approximant'] = self.approximant

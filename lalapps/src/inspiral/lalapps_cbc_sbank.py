@@ -585,8 +585,6 @@ if opts.verbose:
     print "total number of match calculations: %d" % bank._nmatch
     print "final bank size: %d" % len(bank)
 
-bank.clear()  # clear caches
-
 # write out the document
 if opts.output_filename.endswith(('.xml', '.xml.gz')):
     ligolw_process.set_process_end_time(process)
@@ -601,3 +599,12 @@ elif opts.output_filename.endswith(('.hdf', '.h5', '.hdf5')):
         hdf_fp.attrs['parameters'] = params
         for param in params:
             hdf_fp[param] = tbl[param]
+    for tmplt in bank:
+        # Do I need to store new waveforms?
+        # For now, YES, because I haven't implemented using these yet!
+        if tmplt._wf:
+            lowest_df = min(tmplt._wf.keys())
+            hdf_fp[str(tmplt.template_hash)]['waveform'] = \
+                tmplt._wf[lowest_df]
+
+bank.clear()  # clear caches
