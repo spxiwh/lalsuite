@@ -18,7 +18,7 @@ from __future__ import division
 
 from math import isnan
 import numpy as np
-from numpy import float32
+from numpy import float32, int64
 np.seterr(all="ignore")
 
 import lal
@@ -170,16 +170,25 @@ class AlignedSpinTemplate(object):
     hdf_dtype=[('mass1', float32), ('mass2', float32),
                ('spin1z', float32), ('spin2z', float32),
                ('template_duration', float32), ('f_lower', float32),
-               ('approximant', 'S32')]
+               ('template_hash', int64), ('approximant', 'S32')]
 
-    def __init__(self, m1, m2, spin1z, spin2z, bank, flow=None, duration=None):
+    def __init__(self, m1, m2, spin1z, spin2z, bank, flow=None,
+                 duration=None, template_hash=None, hdf_fp=None):
 
         self.m1 = float(m1)
         self.m2 = float(m2)
         self.spin1z = float(spin1z)
         self.spin2z = float(spin2z)
-        self.template_hash = hash((self.m1, self.m2, self.spin1z,
-                                   self.spin2z))
+        self.hdf_fp = hdf_fp
+        self.wf_hdf_fp = None
+        self.stored_waveform_epoch = None
+        self.stored_waveform_df = None
+        if template_hash is None:
+            self.template_hash = hash((self.m1, self.m2, self.spin1z,
+                                       self.spin2z))
+        else:
+            self.template_hash = template_hash
+        self.new_waveform_produced = False
         self.chieff = lalsim.SimIMRPhenomBComputeChi(self.m1, self.m2,
                                                      self.spin1z, self.spin2z)
         self.bank = bank
@@ -287,16 +296,18 @@ class AlignedSpinTemplate(object):
         return cls(sngl.mass1, sngl.mass2, sngl.spin1z, sngl.spin2z, bank)
 
     @classmethod
-    def from_dict(cls, params, idx, bank):
+    def from_dict(cls, params, idx, bank, hdf_fp=None):
         flow = float(params['f_lower'][idx])
         if not flow > 0:
             flow = None
         duration = float(params['template_duration'][idx])
         if not duration > 0:
             duration = None
+        template_hash = int(params['template_hash'][idx])
         return cls(float(params['mass1'][idx]), float(params['mass2'][idx]),
                    float(params['spin1z'][idx]), float(params['spin2z'][idx]),
-                   bank, flow=flow, duration=duration)
+                   bank, flow=flow, duration=duration, hdf_fp=hdf_fp,
+                   template_hash=template_hash)
 
     def to_sngl(self):
         # All numerical values are initiated as 0 and all strings as ''
@@ -365,6 +376,47 @@ class AlignedSpinTemplate(object):
                 None, approx)
         return hplus_fd
 
+    def get_waveform_from_hdf(self, df):
+        """
+        Try to get the waveform from HDF storage. Will return None if it is
+        not possible to generate the waveform from HDF.
+        """
+        if self.hdf_fp is None:
+            return None
+        # Is the waveform stored
+        if self.wf_hdf_fp is None:
+            try:
+                self.wf_hdf_fp = self.hdf_fp[str(self.template_hash)]
+            except:
+                 # This waveform is not stored
+                 self.wf_hdf_fp = None
+                 self.hdf_fp = None
+        if self.wf_hdf_fp is not None:
+            if self.stored_waveform_df is None:
+                self.stored_waveform_df = self.wf_hdf_fp.attrs['waveform_df']
+            df_min = self.stored_waveform_df
+            if df >= df_min:
+                if df % df_min:
+                    raise ValueError("Do NOT change the value of df!!")
+                df_rat = int(df // df_min)
+                wf = self.wf_hdf_fp['waveform'][:][::df_rat]
+                # This might be slow!
+                new_wf = lal.COMPLEX8FrequencySeries()
+                new_wf.deltaF = df
+                new_wf.sampleUnits = lal.StrainUnit
+                new_wf.name = 'FD waveform'
+                if self.stored_waveform_epoch is None:
+                    self.stored_waveform_epoch = \
+                        self.wf_hdf_fp.attrs['waveform_epoch']
+                new_wf.epoch = self.stored_waveform_epoch
+                new_wf.f0 = 0.
+                new_wf.data = lal.CreateCOMPLEX8Vector(len(wf))
+                # Frustrating that I have to copy the data!
+                new_wf.data.data[:] = wf[:]
+                self._wf[df] = new_wf
+                return self._wf[df]
+        return None
+
 
     def get_whitened_normalized(self, df, ASD=None, PSD=None):
         """
@@ -373,27 +425,35 @@ class AlignedSpinTemplate(object):
         match the length of the ASD, so its normalization depends on
         its own length.
         """
-        if not self._wf.has_key(df):
-            wf = self._compute_waveform(df, self.f_final)
-            if ASD is None:
-                ASD = PSD**0.5
-            if wf.data.length > len(ASD):
-                ASD2 = np.ones(wf.data.length) * np.inf
-                ASD2[:len(ASD)] = ASD
-                ASD = ASD2
-            arr_view = wf.data.data
+        if self._wf.has_key(df):
+            return self._wf[df]
 
-            # whiten
-            arr_view[:] /= ASD[:wf.data.length]
-            arr_view[:int(self.flow / df)] = 0.
-            arr_view[int(self.f_final/df) : wf.data.length] = 0.
+        # Is the waveform stored
+        stored_wf = self.get_waveform_from_hdf(df)
+        if stored_wf is not None:
+            return stored_wf
 
-            # normalize
-            self.sigmasq = compute_sigmasq(arr_view, df)
-            arr_view[:] /= self.sigmasq**0.5
+        self.new_waveform_produced = True
+        wf = self._compute_waveform(df, self.f_final)
+        if ASD is None:
+            ASD = PSD**0.5
+        if wf.data.length > len(ASD):
+            ASD2 = np.ones(wf.data.length) * np.inf
+            ASD2[:len(ASD)] = ASD
+            ASD = ASD2
+        arr_view = wf.data.data
 
-            # down-convert to single precision
-            self._wf[df] = FrequencySeries_to_COMPLEX8FrequencySeries(wf)
+        # whiten
+        arr_view[:] /= ASD[:wf.data.length]
+        arr_view[:int(self.flow / df)] = 0.
+        arr_view[int(self.f_final/df) : wf.data.length] = 0.
+
+        # normalize
+        self.sigmasq = compute_sigmasq(arr_view, df)
+        arr_view[:] /= self.sigmasq**0.5
+
+        # down-convert to single precision
+        self._wf[df] = FrequencySeries_to_COMPLEX8FrequencySeries(wf)
         return self._wf[df]
 
     def metric_match(self, other, df, **kwargs):
@@ -733,7 +793,7 @@ class PrecessingSpinTemplate(AlignedSpinTemplate):
                    sngl.alpha5, bank)
 
     @classmethod
-    def from_dict(cls, params, idx, bank):
+    def from_dict(cls, params, idx, bank, hdf_fp=None):
         flow = float(params['f_lower'][idx])
         if not flow > 0:
             flow = None
@@ -846,7 +906,7 @@ class SpinTaylorF2Template(InspiralPrecessingSpinTemplate):
                    sngl.alpha4, sngl.alpha5, bank)
 
     @classmethod
-    def from_dict(cls, hdf_fp, idx, bank):
+    def from_dict(cls, params, idx, bank, hdf_fp=None):
         raise NotImplementedError('Please write this!')
 
     def to_sngl(self):

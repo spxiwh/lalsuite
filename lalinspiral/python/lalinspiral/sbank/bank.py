@@ -118,11 +118,14 @@ class Bank(object):
                 tmp = {}
                 end_idx = min(idx+100000, num_points)
                 for name in hdf_fp:
+                    if name == 'waveforms':
+                        continue
                     tmp[name] = hdf_fp[name][idx:end_idx]
             c_idx = idx % 100000
             approx = tmp['approximant'][c_idx]
             tmplt_class = waveforms.waveforms[approx]
-            newtmplts.append(tmplt_class.from_dict(tmp, c_idx, self))
+            newtmplts.append(tmplt_class.from_dict(tmp, c_idx, self,
+                                                hdf_fp=hdf_fp['waveforms']))
             newtmplts[-1].is_seed_point=True
         self._templates.extend(newtmplts)
         self._templates.sort(key=attrgetter(self.nhood_param))

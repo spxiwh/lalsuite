@@ -402,7 +402,6 @@ for file_approx in opts.bank_seed:
     elif opts.output_filename.endswith(('.hdf', '.h5', '.hdf5')):
         hdf_fp = h5py.File(seed_file, 'r')
         bank.add_from_hdf(hdf_fp)
-        hdf_fp.close()
 
 if opts.verbose:
     print>>sys.stdout,"Initialized the template bank to seed with %d precomputed templates." % len(bank)
@@ -599,12 +598,16 @@ elif opts.output_filename.endswith(('.hdf', '.h5', '.hdf5')):
         hdf_fp.attrs['parameters'] = params
         for param in params:
             hdf_fp[param] = tbl[param]
+    hdf_fp.create_group('waveforms')
     for tmplt in bank:
         # Do I need to store new waveforms?
         # For now, YES, because I haven't implemented using these yet!
         if tmplt._wf:
             lowest_df = min(tmplt._wf.keys())
-            hdf_fp[str(tmplt.template_hash)]['waveform'] = \
-                tmplt._wf[lowest_df]
+            hdf_fp['waveforms'].create_group(str(tmplt.template_hash))
+            curr_wf = hdf_fp['waveforms'][str(tmplt.template_hash)]
+            curr_wf['waveform'] = tmplt._wf[lowest_df].data.data
+            curr_wf.attrs['waveform_df'] = tmplt._wf[lowest_df].deltaF
+            curr_wf.attrs['waveform_epoch'] = float(tmplt._wf[lowest_df].epoch)
 
 bank.clear()  # clear caches
