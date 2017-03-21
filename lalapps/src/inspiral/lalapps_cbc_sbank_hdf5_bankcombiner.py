@@ -39,8 +39,9 @@ args = parser.parse_args()
 
 attrs_dict = None
 items_dict = None
-approx_map_dict = {}
-approx_map_dict['counter'] = 1
+curr_waveforms = None
+
+out_fp = h5py.File(args.output_file, 'w')
 
 for file_name in args.input_filenames:
     hdf_fp = h5py.File(file_name, 'r')
@@ -53,10 +54,12 @@ for file_name in args.input_filenames:
     if items_dict is None:
         items_dict = {}
         for item, entries in hdf_fp.items():
-            items_dict[item] = entries[:]
+            if not item == 'waveforms':
+                items_dict[item] = entries[:]
     else:
         curr_items = set(items_dict.keys())
         new_items = set(hdf_fp.keys())
+        new_items -= set(['waveforms'])
         # This does the XOR check of the two sets of keys.
         # Basically we demand that the two files must have the same items.
         if set(curr_items).symmetric_difference(new_items):
@@ -66,10 +69,37 @@ for file_name in args.input_filenames:
             err_msg += "other files contain {}.".format(curr_items)
             raise ValueError(err_msg)
         for item, entries in hdf_fp.items():
-            items_dict[item] = numpy.append(items_dict[item], entries[:])
+            if not item == 'waveforms':
+                items_dict[item] = numpy.append(items_dict[item], entries[:])
+    if 'waveforms' in hdf_fp.keys():
+        hdf_fp_wd = hdf_fp['waveforms']
+        # If curr_waveforms is None, this is the first file and we just
+        # copy the entire waveform group. This is much quicker than the
+        # checks on subsequent files, so if adding a small set of waveforms
+        # to a large file, make sure the large file is given *first*!
+        if curr_waveforms is None:
+            h5py.h5o.copy(hdf_fp.id, 'waveforms', out_fp.id, 'waveforms')
+            #hdf_fp.copy('waveforms', out_fp)
+            curr_waveforms = set(hdf_fp_wd.keys())
+            out_fp_wf = out_fp['waveforms']
+        else:
+            # Now we need to check each waveform, this is slow!
+            new_waveforms = hdf_fp_wd.keys()
+            for wf in new_waveforms:
+                if wf not in curr_waveforms:
+                    h5py.h5o.copy(hdf_fp_wd.id, wf, out_fp_wf.id, wf)
+                    #hdf_fp.copy('waveforms/'+wf, out_fp['waveforms'])
+                    curr_waveforms.add(wf)
+                else:
+                    old_df = out_fp_wf[wf].attrs['waveform_df']
+                    new_df = hdf_fp_wd[wf].attrs['waveform_df']
+                    if new_df < old_df:
+                        del out_fp_wf[wf]
+                        hdf_fp.copy('waveforms/'+wf, out_fp['waveforms'])
+                        #out_fp.flush()
+                    
     hdf_fp.close()
 
-out_fp = h5py.File(args.output_file, 'w')
 if attrs_dict is None:
     out_fp.attrs['empty_file'] = True
 else:

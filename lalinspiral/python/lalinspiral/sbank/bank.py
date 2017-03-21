@@ -113,6 +113,7 @@ class Bank(object):
     def add_from_hdf(self, hdf_fp):
         num_points = len(hdf_fp['mass1'])
         newtmplts=[]
+        wf_subd = hdf_fp['waveforms']
         for idx in xrange(num_points):
             if not idx % 100000:
                 tmp = {}
@@ -125,7 +126,7 @@ class Bank(object):
             approx = tmp['approximant'][c_idx]
             tmplt_class = waveforms.waveforms[approx]
             newtmplts.append(tmplt_class.from_dict(tmp, c_idx, self,
-                                                hdf_fp=hdf_fp['waveforms']))
+                                                   hdf_fp=wf_subd))
             newtmplts[-1].is_seed_point=True
         self._templates.extend(newtmplts)
         self._templates.sort(key=attrgetter(self.nhood_param))

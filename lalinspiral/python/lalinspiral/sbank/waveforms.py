@@ -487,11 +487,14 @@ class InspiralAlignedSpinTemplate(AlignedSpinTemplate):
     templates should sub-class this class.
     """
     __slots__ = ("chired")
-    def __init__(self, m1, m2, spin1z, spin2z, bank, flow=None, duration=None):
+    def __init__(self, m1, m2, spin1z, spin2z, bank, flow=None, duration=None,
+                 template_hash=None, hdf_fp=None):
 
         self.chired = lalsim.SimInspiralTaylorF2ReducedSpinComputeChi(m1, m2, spin1z, spin2z)
         AlignedSpinTemplate.__init__(self, m1, m2, spin1z, spin2z, bank,
-                                     flow=flow, duration=duration)
+                                     flow=flow, duration=duration,
+                                     template_hash=template_hash,
+                                     hdf_fp=hdf_fp)
 
     def _get_dur(self):
         return self._get_chirp_dur()

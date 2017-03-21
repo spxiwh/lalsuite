@@ -470,6 +470,7 @@ if opts.trial_waveforms:
         proposal = (tmplt_class.from_sngl(t, bank=bank) for t in trial_sngls)
     elif opts.trial_waveforms.endswith(('.hdf', '.h5', '.hdf5')):
         hdf_fp = h5py.File(opts.trial_waveforms, 'r')
+        wf_subd = hdf_fp['waveforms']
         num_points = len(hdf_fp['mass1'])
         proposal=[]
         for idx in xrange(num_points):
@@ -480,11 +481,13 @@ if opts.trial_waveforms:
                 tmp = {}
                 end_idx = min(idx+100000, num_points)
                 for name in hdf_fp:
-                    tmp[name] = hdf_fp[name][idx:end_idx]
+                    if not name == 'waveforms':
+                        tmp[name] = hdf_fp[name][idx:end_idx]
             c_idx = idx % 100000
             approx = hdf_fp['approximant'][c_idx]
             tmplt_class = waveforms[approx]
-            proposal.append(tmplt_class.from_dict(tmp, c_idx, bank))
+            proposal.append(tmplt_class.from_dict(tmp, c_idx, bank,
+                                                  hdf_fp=wf_subd))
         hdf_fp.close()
 
 else:
@@ -602,7 +605,7 @@ elif opts.output_filename.endswith(('.hdf', '.h5', '.hdf5')):
     for tmplt in bank:
         # Do I need to store new waveforms?
         # For now, YES, because I haven't implemented using these yet!
-        if tmplt._wf:
+        if tmplt._wf and tmplt.new_waveform_produced:
             lowest_df = min(tmplt._wf.keys())
             hdf_fp['waveforms'].create_group(str(tmplt.template_hash))
             curr_wf = hdf_fp['waveforms'][str(tmplt.template_hash)]
