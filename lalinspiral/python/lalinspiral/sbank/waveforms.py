@@ -367,13 +367,35 @@ class AlignedSpinTemplate(object):
                 None, approx)
 
         else:
-            hplus_fd, hcross_fd = lalsim.SimInspiralFD(
-                phi0, df, self.m1*MSUN_SI, self.m2*MSUN_SI, 0,
+            f_final = ceil_pow_2(f_final)
+            intended_samples = int(f_final / df + 1.5)
+            # I'm hardcoding delta_T for waveform generation
+            delta_t_gen = 1./4096
+            hp, hc = lalsim.SimInspiralTD(
+                self.m1*MSUN_SI, self.m2*MSUN_SI, 0,
                 0, self.spin1z, 0, 0, self.spin2z,
                 1.e6*PC_SI, 0., 0.,
                 0., 0., 0.,
-                df, self.flow, f_final, 40.,
+                delta_t_gen, self.flow, self.flow,
                 None, approx)
+            # Could stash hp and hc here??
+            curr_length = hp.data.length
+            new_length = ceil_pow_2(curr_length)
+            while new_length * hp.deltaT < 1./delta_f:
+                new_length = new_length * 2
+            hpr = lal.ResizeREAL8TimeSeries(hp, 0, new_length)
+            hpf = lal.CreateCOMPLEX16FrequencySeries('waveform', hpr.epoch, 0., 1./(new_length * hpr.deltaT), lal.DimensionlessUnit, new_length/2 + 1)
+            # Could store plans and use measure_lvl > 0
+            # ... Probably though the FFT is not a dominant cost!
+            plan = lal.CreateForwardREAL8FFTPlan(new_length, 0)
+            lal.REAL8TimeFreqFFT(hpf, hpr, plan)
+            # This must be an integer!!
+            df_ratio = int(delta_f/ hpf.deltaF)
+            assert( (delta_f % hpf.deltaF) == 0)
+            n_freq_len = int((intended_samples-1) * df_ratio +1)
+            assert(intended_samples <= hpf.data.length)
+            hplus_fd = lal.CreateCOMPLEX16FrequencySeries('waveform', hpr.epoch, 0., delta_f, lal.DimensionlessUnit, intended_samples)
+            hlpus_fd.data.data[:] = hpf.data.data[:n_freq_len:df_ratio]
         return hplus_fd
 
     def get_waveform_from_hdf(self, df):
@@ -942,6 +964,9 @@ class SpinTaylorF2Template(InspiralPrecessingSpinTemplate):
 class SpinTaylorT2FourierTemplate(InspiralPrecessingSpinTemplate):
     approximant = "SpinTaylorT2Fourier"
 
+class SpinTaylorT2Template(InspiralPrecessingSpinTemplate):
+    approximant = "SpinTaylorT2"
+
 class SpinTaylorT4Template(InspiralPrecessingSpinTemplate):
     approximant = "SpinTaylorT4"
 
@@ -1014,9 +1039,10 @@ waveforms = {
     "SEOBNRv2": SEOBNRv2Template,
     "SEOBNRv2_ROM_DoubleSpin": SEOBNRv2ROMDoubleSpinTemplate,
     "SEOBNRv2_ROM_DoubleSpin_HI": SEOBNRv2ROMDoubleSpinHITemplate,
-    "SEOBNRv4" : SEOBNRv4ROMTemplate,
+    "SEOBNRv4" : SEOBNRv4Template,
     "SEOBNRv4_ROM" : SEOBNRv4ROMTemplate,
     "EOBNRv2": EOBNRv2Template,
+    "SpinTaylorT2": SpinTaylorT2Template,
     "SpinTaylorT4": SpinTaylorT4Template,
     "SpinTaylorT5": SpinTaylorT5Template,
     "SpinTaylorF2": SpinTaylorF2Template,
