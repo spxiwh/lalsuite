@@ -242,6 +242,10 @@ class Bank(object):
                 max_match = match
                 template = tmplt
 
+            tmplt.stored_td_waveform_hp = None
+            tmplt.stored_td_waveform_hc = None
+        proposal.stored_td_waveform_hp = None
+        proposal.stored_td_waveform_hc = None
         return (max_match, template)
 
     def max_match(self, proposal):

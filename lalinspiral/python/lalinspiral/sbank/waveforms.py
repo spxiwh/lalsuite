@@ -183,6 +183,8 @@ class AlignedSpinTemplate(object):
         self.wf_hdf_fp = None
         self.stored_waveform_epoch = None
         self.stored_waveform_df = None
+        self.stored_td_waveform_hp = None
+        self.stored_td_waveform_hc = None
         if template_hash is None:
             self.template_hash = hash((self.m1, self.m2, self.spin1z,
                                        self.spin2z))
@@ -193,13 +195,7 @@ class AlignedSpinTemplate(object):
                                                      self.spin1z, self.spin2z)
         self.bank = bank
 
-        if flow is None:
-            self.flow = bank.flow
-            if bank.optimize_flow is not None:
-                self.optimize_flow(bank.flow, bank.fhigh_max, bank.noise_model,
-                                   sigma_frac=bank.optimize_flow)
-        else:
-            self.flow = flow
+        self._flow = flow
 
         self._wf = {}
         self._metric = None
@@ -210,7 +206,7 @@ class AlignedSpinTemplate(object):
         self._f_final = None
         self._fhigh_max = bank.fhigh_max
 
-    def optimize_flow(self, flow_min, fhigh_max, noise_model, df=0.1,
+    def optimize_flow(self, flow_min, fhigh_max, noise_model, df=1./8.,
                       sigma_frac=0.99):
         """Set the template's flow as high as possible but still recovering
         at least the given fraction of the template's sigma when calculated
@@ -233,7 +229,7 @@ class AlignedSpinTemplate(object):
         ref_sigmasq = integral[-1]
         # find the frequency bin corresponding to the target loss
         i = np.searchsorted(integral, ref_sigmasq * sigma_frac ** 2)
-        self.flow = (len(integral) - i) * df
+        self._flow = (len(integral) - i) * df
 
     @property
     def params(self):
@@ -256,6 +252,16 @@ class AlignedSpinTemplate(object):
         if self._dur is None:
             self._dur = self._get_dur()
         return self._dur
+
+    @property
+    def flow(self):
+        if self._flow is None:
+            self._flow = self.bank.flow
+            if self.bank.optimize_flow is not None:
+                self.optimize_flow(self.bank.flow, self.bank.fhigh_max,
+                                   self.bank.noise_model,
+                                   sigma_frac=self.bank.optimize_flow)
+        return self._flow
 
     @dur.setter
     def dur(self, new_val):
@@ -367,10 +373,25 @@ class AlignedSpinTemplate(object):
                 None, approx)
 
         else:
-            f_final = ceil_pow_2(f_final)
-            intended_samples = int(f_final / df + 1.5)
-            # I'm hardcoding delta_T for waveform generation
-            delta_t_gen = 1./4096
+            hplus_fd, hcross_fd = self._get_waveform_comps_from_td(df, f_final,
+                                                                   approx)
+        return hplus_fd
+
+    def _get_waveform_comps_from_td(self, df, f_final, approx):
+        """ Generate hplus and hcross from TD waveform approximant.
+
+        Generates the hplus and hcross component of a TD waveform and converts
+        to the frequency domain with specified df and f_final. Generates even
+        if this means the waveform will be "wrapped" if 1./df is smaller than
+        the waveform length. As this may be called with multiple values of df
+        the td vectors are temporarily stored to avoid having to call the TD
+        waveform generator too often.
+        """
+        f_final = ceil_pow_2(f_final)
+        intended_samples = int(f_final / df + 1.5)
+        # I'm hardcoding delta_T for waveform generation
+        delta_t_gen = 1./8192
+        if self.stored_td_waveform_hp is None:
             hp, hc = lalsim.SimInspiralTD(
                 self.m1*MSUN_SI, self.m2*MSUN_SI, 0,
                 0, self.spin1z, 0, 0, self.spin2z,
@@ -378,25 +399,30 @@ class AlignedSpinTemplate(object):
                 0., 0., 0.,
                 delta_t_gen, self.flow, self.flow,
                 None, approx)
-            # Could stash hp and hc here??
-            curr_length = hp.data.length
-            new_length = ceil_pow_2(curr_length)
-            while new_length * hp.deltaT < 1./delta_f:
-                new_length = new_length * 2
-            hpr = lal.ResizeREAL8TimeSeries(hp, 0, new_length)
-            hpf = lal.CreateCOMPLEX16FrequencySeries('waveform', hpr.epoch, 0., 1./(new_length * hpr.deltaT), lal.DimensionlessUnit, new_length/2 + 1)
-            # Could store plans and use measure_lvl > 0
-            # ... Probably though the FFT is not a dominant cost!
-            plan = lal.CreateForwardREAL8FFTPlan(new_length, 0)
-            lal.REAL8TimeFreqFFT(hpf, hpr, plan)
-            # This must be an integer!!
-            df_ratio = int(delta_f/ hpf.deltaF)
-            assert( (delta_f % hpf.deltaF) == 0)
-            n_freq_len = int((intended_samples-1) * df_ratio +1)
-            assert(intended_samples <= hpf.data.length)
-            hplus_fd = lal.CreateCOMPLEX16FrequencySeries('waveform', hpr.epoch, 0., delta_f, lal.DimensionlessUnit, intended_samples)
-            hlpus_fd.data.data[:] = hpf.data.data[:n_freq_len:df_ratio]
-        return hplus_fd
+            self.stored_td_waveform_hp = hp
+            self.stored_td_waveform_hc = hc
+        else:
+            hp = self.stored_td_waveform_hp
+            hc = self.stored_td_waveform_hc
+        # Could stash hp and hc here??
+        curr_length = hp.data.length
+        new_length = ceil_pow_2(curr_length)
+        while new_length * hp.deltaT < 1./df:
+            new_length = new_length * 2
+        hpr = lal.ResizeREAL8TimeSeries(hp, 0, new_length)
+        hpf = lal.CreateCOMPLEX16FrequencySeries('waveform', hpr.epoch, 0., 1./(new_length * hpr.deltaT), lal.DimensionlessUnit, new_length//2 + 1)
+        # Could store plans and use measure_lvl > 0
+        # ... Probably though the FFT is not a dominant cost!
+        plan = lal.CreateForwardREAL8FFTPlan(new_length, 0)
+        lal.REAL8TimeFreqFFT(hpf, hpr, plan)
+        # This must be an integer!!
+        df_ratio = int(df/ hpf.deltaF)
+        assert( (df % hpf.deltaF) == 0)
+        n_freq_len = int((intended_samples-1) * df_ratio +1)
+        assert(intended_samples <= hpf.data.length)
+        hplus_fd = lal.CreateCOMPLEX16FrequencySeries('waveform', hpr.epoch, 0., df, lal.DimensionlessUnit, intended_samples)
+        hplus_fd.data.data[:] = hpf.data.data[:n_freq_len:df_ratio]
+        return hplus_fd, None
 
     def get_waveform_from_hdf(self, df):
         """
@@ -590,6 +616,9 @@ class SEOBNRv4Template(IMRAlignedSpinTemplate):
         # Allow a 10% margin of error
         return dur * 1.1
 
+class SEOBNRv4OptTemplate(SEOBNRv4Template):
+    approximant = "SEOBNRv4_opt"
+
 class SEOBNRv4ROMTemplate(SEOBNRv4Template):
     approximant = "SEOBNRv4_ROM"
 
@@ -735,15 +764,8 @@ class PrecessingSpinTemplate(AlignedSpinTemplate):
                 df, self.flow, f_final, self.flow,
                 None, approx)
         else:
-            hplus_fd, hcross_fd = lalsim.SimInspiralFD(
-                self.m1*MSUN_SI, self.m2*MSUN_SI,
-                self.spin1x, self.spin1y, self.spin1z,
-                self.spin2x, self.spin2y, self.spin2z,
-                1.e6*PC_SI, self.iota, self.orb_phase,
-                0., 0., 0.,
-                df, self.flow, f_final, self.flow,
-                None, approx)
-
+            hplus_fd, hcross_fd = self._get_waveform_comps_from_td(df, f_final,
+                                                                   approx)
         return hplus_fd, hcross_fd
 
     def _compute_waveform(self, df, f_final):
@@ -752,6 +774,57 @@ class PrecessingSpinTemplate(AlignedSpinTemplate):
         # project onto detector
         return project_hplus_hcross(hplus_fd, hcross_fd, self.theta, self.phi,
                                     self.psi)
+
+    def get_waveform_comps_from_hdf(self, df):
+        """
+        Return the hplus and hcross components of a waveform from a HDF file
+        attached to the Template class at specified df.
+        Raises KeyError if the specified df is not possible.
+        """
+        # Do I even *have* a HDF file?
+        if self.hdf_fp is None:
+            raise KeyError()
+        # Is the waveform stored?
+        if self.wf_hdf_fp is None:
+            try:
+                self.wf_hdf_fp = self.hdf_fp[str(self.template_hash)]
+            except:
+                # This waveform is not stored
+                self.wf_hdf_fp = None
+                self.hdf_fp = None
+                raise KeyError()
+        if self.stored_waveform_df is None:
+            self.stored_waveform_df = self.wf_hdf_fp.attrs['waveform_df']
+        df_min = self.stored_waveform_df
+        if df < df_min:
+            raise KeyError()
+        if df % df_min:
+            raise ValueError("Do NOT change the value of df!!")
+        df_rat = int(df // df_min)
+        wf_hp = self.wf_hdf_fp['waveform_hp'][:][::df_rat]
+        wf_hc = self.wf_hdf_fp['waveform_hc'][:][::df_rat]
+        new_wf_hp = lal.COMPLEX8FrequencySeries()
+        new_wf_hc = lal.COMPLEX8FrequencySeries()
+        new_wf_hp.deltaF = df
+        new_wf_hc.deltaF = df
+        new_wf_hp.sampleUnits = lal.StrainUnit
+        new_wf_hc.sampleUnits = lal.StrainUnit
+        new_wf_hp.name = 'FD Waveform hplus'
+        new_wf_hc.name = 'FD Waveform hcross'
+        if self.stored_waveform_epoch is None:
+            self.stored_waveform_epoch = \
+                self.wf_hdf_fp.attrs['waveform_epoch']
+        new_wf_hp.epoch = self.stored_waveform_epoch
+        new_wf_hc.epoch = self.stored_waveform_epoch
+        new_wf_hp.f0 = 0.
+        new_wf_hc.f0 = 0.
+        new_wf_hp.data = lal.CreateCOMPLEX8Vector(len(wf_hp))
+        new_wf_hc.data = lal.CreateCOMPLEX8Vector(len(wf_hc))
+        # Frustrating that I have to copy the data!
+        new_wf_hp.data.data[:] = wf_hp[:]
+        new_wf_hc.data.data[:] = wf_hc[:]
+        return new_wf_hp, new_wf_hc
+
 
     def get_whitened_normalized_comps(self, df, ASD=None, PSD=None):
         """
@@ -763,13 +836,21 @@ class PrecessingSpinTemplate(AlignedSpinTemplate):
         if not self._wf_hp.has_key(df):
             # Clear self._wf as it won't be needed any more if calling here
             self._wf = {}
-            # Generate a new wf
-            hp, hc = self._compute_waveform_comps(df, self.f_final)
+           
+            # Is the waveform stored?
+            try:
+                hp, hc = self.get_waveform_comps_from_hdf(df)
+            except KeyError:
+                # Generate a new wf
+                hp, hc = self._compute_waveform_comps(df, self.f_final)
             if ASD is None:
                 ASD = PSD**0.5
             if hp.data.length > len(ASD):
                 err_msg = "waveform has length greater than ASD; cannot whiten"
                 raise ValueError(err_msg)
+
+            # Some of this is not needed for stored waveforms, but I figure it
+            # won't matter in terms of overall comp. cost.
             arr_view_hp = hp.data.data
             arr_view_hc = hc.data.data
 
@@ -788,11 +869,11 @@ class PrecessingSpinTemplate(AlignedSpinTemplate):
             arr_view_hp[:] /= self._hpsigmasq[df]**0.5
             arr_view_hc[:] /= self._hcsigmasq[df]**0.5
 
-            self._hphccorr[df] = compute_correlation(arr_view_hp, arr_view_hc, df)
+            self._hphccorr[df] = compute_correlation(arr_view_hp, arr_view_hc,
+                                                     df)
 
             self._wf_hp[df] = FrequencySeries_to_COMPLEX8FrequencySeries(hp)
             self._wf_hc[df] = FrequencySeries_to_COMPLEX8FrequencySeries(hc)
-
 
         return self._wf_hp[df], self._wf_hc[df], self._hphccorr[df]
 
@@ -1040,6 +1121,7 @@ waveforms = {
     "SEOBNRv2_ROM_DoubleSpin": SEOBNRv2ROMDoubleSpinTemplate,
     "SEOBNRv2_ROM_DoubleSpin_HI": SEOBNRv2ROMDoubleSpinHITemplate,
     "SEOBNRv4" : SEOBNRv4Template,
+    "SEOBNRv4_opt" : SEOBNRv4OptTemplate,
     "SEOBNRv4_ROM" : SEOBNRv4ROMTemplate,
     "EOBNRv2": EOBNRv2Template,
     "SpinTaylorT2": SpinTaylorT2Template,

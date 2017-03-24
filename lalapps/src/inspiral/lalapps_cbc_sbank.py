@@ -200,6 +200,7 @@ def parse_command_line():
     parser.add_option("--match-min",help="Set minimum match of the bank. Note that since this is a stochastic process, the requested minimal match may not be strictly guaranteed but should be fulfilled on a statistical basis. Default: 0.95.", type="float", default=0.95)
     parser.add_option("--convergence-threshold", metavar="N", help="Set the criterion for convergence of the stochastic bank. The code terminates when there are N rejected proposals for each accepted proposal, averaged over the last ten acceptances. Default 1000.", type="int", default=1000)
     parser.add_option("--max-new-templates", metavar="N", help="Use this option to force the code to exit after accepting a specified number N of new templates. Note that the code may exit with fewer than N templates if the convergence criterion is met first.", type="int", default=float('inf'))
+    parser.add_option("--max-proposals", metavar="N", help="Use this option to force the code to exit after proposing a specified number N of new templates. Note that the code may exit with fewer than N templates if other termination criteria are met first.", type="int", default=float('inf'))
     parser.add_option("--cache-waveforms", default = False, action="store_true", help="A given waveform in the template bank will be used many times throughout the bank generation process. You can save a considerable amount of CPU by caching the waveform from the first time it is generated; however, do so only if you are sure that storing the waveforms in memory will not overload the system memory.")
     parser.add_option("--coarse-match-df", type="float", default=None, help="If given, use this value of df to quickly test if the mismatch is less than 4 times the minimal mismatch. This can quickly reject points at high values of df, that will not have high overlaps at smaller df values. This can be used to speed up the sbank process.")
     parser.add_option("--iterative-match-df-max", type="float", default=None, help="If this option is given it will enable sbank using larger df values than 1 / data length when computing overlaps. Sbank will then compute a match at this value, and at half this value, if the two values agree to 0.1% the value obtained will be taken as the actual value. If the values disagree the match will be computed again using a df another factor of 2 smaller until convergence or a df of 1/ data_length, is reached.")
@@ -488,7 +489,7 @@ if opts.trial_waveforms:
             tmplt_class = waveforms[approx]
             proposal.append(tmplt_class.from_dict(tmp, c_idx, bank,
                                                   hdf_fp=wf_subd))
-        hdf_fp.close()
+        #hdf_fp.close()
 
 else:
     params = {'mass1': (opts.mass1_min, opts.mass1_max),
@@ -528,7 +529,7 @@ for tmplt in proposal:
     # check if stopping criterion has been reached
     #
     if not (((k + float(sum(ks)))/len(ks) < opts.convergence_threshold) and \
-            (len(tbl) < opts.max_new_templates)):
+            (len(tbl) < opts.max_new_templates) and (nprop < opts.max_proposals)):
         break
 
     # accounting for number of proposals
@@ -603,14 +604,24 @@ elif opts.output_filename.endswith(('.hdf', '.h5', '.hdf5')):
             hdf_fp[param] = tbl[param]
     hdf_fp.create_group('waveforms')
     for tmplt in bank:
-        # Do I need to store new waveforms?
-        # For now, YES, because I haven't implemented using these yet!
-        if tmplt._wf and tmplt.new_waveform_produced:
+        # Does this waveform have a waveform stored? If so is this a new point
+        # or if this is in the seed-bank did I make a longer waveform during
+        # this run. If true: Store waveform
+        if tmplt._wf and (tmplt.new_waveform_produced or (not hasattr(tmplt, 'is_seed_point'))):
             lowest_df = min(tmplt._wf.keys())
             hdf_fp['waveforms'].create_group(str(tmplt.template_hash))
             curr_wf = hdf_fp['waveforms'][str(tmplt.template_hash)]
             curr_wf['waveform'] = tmplt._wf[lowest_df].data.data
             curr_wf.attrs['waveform_df'] = tmplt._wf[lowest_df].deltaF
             curr_wf.attrs['waveform_epoch'] = float(tmplt._wf[lowest_df].epoch)
+        if hasattr(tmplt, _wf_hp) and tmplt._wf_hp and tmplt.new_waveform_produced:
+            lowest_df = min(tmplt._wf_hp.keys())
+            hdf_fp['waveforms'].create_group(str(tmplt.template_hash))
+            curr_wf = hdf_fp['waveforms'][str(tmplt.template_hash)]
+            curr_wf['waveform_hp'] = tmplt._wf_hp[lowest_df].data.data
+            curr_wf['waveform_hc'] = tmplt._wf_hc[lowest_df].data.data
+            curr_wf.attrs['waveform_df'] = tmplt._wf_hp[lowest_df].deltaF
+            curr_wf.attrs['waveform_epoch'] = \
+                float(tmplt._wf_hp[lowest_df].epoch)
 
 bank.clear()  # clear caches
