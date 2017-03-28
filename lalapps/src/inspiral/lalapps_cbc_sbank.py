@@ -614,7 +614,7 @@ elif opts.output_filename.endswith(('.hdf', '.h5', '.hdf5')):
             curr_wf['waveform'] = tmplt._wf[lowest_df].data.data
             curr_wf.attrs['waveform_df'] = tmplt._wf[lowest_df].deltaF
             curr_wf.attrs['waveform_epoch'] = float(tmplt._wf[lowest_df].epoch)
-        if hasattr(tmplt, _wf_hp) and tmplt._wf_hp and tmplt.new_waveform_produced:
+        if hasattr(tmplt, '_wf_hp') and tmplt._wf_hp and tmplt.new_waveform_produced:
             lowest_df = min(tmplt._wf_hp.keys())
             hdf_fp['waveforms'].create_group(str(tmplt.template_hash))
             curr_wf = hdf_fp['waveforms'][str(tmplt.template_hash)]

@@ -344,7 +344,11 @@ class AlignedSpinTemplate(object):
         new_tmplt['template_hash'] = self.template_hash
         new_tmplt['template_duration'] = self.dur
         new_tmplt['f_lower'] = self.flow
-        new_tmplt['approximant'] = self.approximant
+        if hasattr(self, 'storage_name'):
+            new_tmplt['approximant'] = self.storage_name
+        else:
+            print "NO STORAGE NAME"
+            new_tmplt['approximant'] = self.approximant
         return new_tmplt
 
     def __repr__(self):
@@ -410,19 +414,24 @@ class AlignedSpinTemplate(object):
         while new_length * hp.deltaT < 1./df:
             new_length = new_length * 2
         hpr = lal.ResizeREAL8TimeSeries(hp, 0, new_length)
+        hcr = lal.ResizeREAL8TimeSeries(hc, 0, new_length)
         hpf = lal.CreateCOMPLEX16FrequencySeries('waveform', hpr.epoch, 0., 1./(new_length * hpr.deltaT), lal.DimensionlessUnit, new_length//2 + 1)
+        hcf = lal.CreateCOMPLEX16FrequencySeries('waveform', hcr.epoch, 0., 1./(new_length * hcr.deltaT), lal.DimensionlessUnit, new_length//2 + 1)
         # Could store plans and use measure_lvl > 0
         # ... Probably though the FFT is not a dominant cost!
         plan = lal.CreateForwardREAL8FFTPlan(new_length, 0)
         lal.REAL8TimeFreqFFT(hpf, hpr, plan)
+        lal.REAL8TimeFreqFFT(hcf, hcr, plan)
         # This must be an integer!!
         df_ratio = int(df/ hpf.deltaF)
         assert( (df % hpf.deltaF) == 0)
         n_freq_len = int((intended_samples-1) * df_ratio +1)
         assert(intended_samples <= hpf.data.length)
         hplus_fd = lal.CreateCOMPLEX16FrequencySeries('waveform', hpr.epoch, 0., df, lal.DimensionlessUnit, intended_samples)
+        hcross_fd = lal.CreateCOMPLEX16FrequencySeries('waveform', hcr.epoch, 0., df, lal.DimensionlessUnit, intended_samples)
         hplus_fd.data.data[:] = hpf.data.data[:n_freq_len:df_ratio]
-        return hplus_fd, None
+        hcross_fd.data.data[:] = hcf.data.data[:n_freq_len:df_ratio]
+        return hplus_fd, hcross_fd
 
     def get_waveform_from_hdf(self, df):
         """
@@ -1048,6 +1057,10 @@ class SpinTaylorT2FourierTemplate(InspiralPrecessingSpinTemplate):
 class SpinTaylorT2Template(InspiralPrecessingSpinTemplate):
     approximant = "SpinTaylorT2"
 
+class SpinTaylorT2AlignedTemplate(InspiralAlignedSpinTemplate):
+    approximant = "SpinTaylorT2"
+    storage_name = "SpinTaylorT2Aligned"
+
 class SpinTaylorT4Template(InspiralPrecessingSpinTemplate):
     approximant = "SpinTaylorT4"
 
@@ -1094,6 +1107,7 @@ class EOBNRHigherOrderModeTemplate(IMRPrecessingSpinTemplate,
 class EOBNRHigherOrderModeAmpMaxTemplate(IMRPrecessingSpinTemplate):
     """Class for EOBNRHM templates."""
     approximant = "EOBNRv2HM_ROM"
+    storage_name = "EOBNRv2HM_ROM_AmpMax"
     def brute_match(self, other, df, workspace_cache, **kwargs):
 
         tmplt =  self.get_whitened_normalized(df, **kwargs)
@@ -1107,6 +1121,7 @@ class EOBNRHigherOrderModeAmpMaxTemplate(IMRPrecessingSpinTemplate):
 class EOBNRHigherOrderModePhaseMaxTemplate(IMRPrecessingSpinTemplate):
     """Class for EOBNRHM templates."""
     approximant = "EOBNRv2HM_ROM"
+    storage_name = "EOBNRv2HM_ROM_PhaseMax"
 
 
 waveforms = {
@@ -1125,6 +1140,7 @@ waveforms = {
     "SEOBNRv4_ROM" : SEOBNRv4ROMTemplate,
     "EOBNRv2": EOBNRv2Template,
     "SpinTaylorT2": SpinTaylorT2Template,
+    "SpinTaylorT2Aligned": SpinTaylorT2AlignedTemplate,
     "SpinTaylorT4": SpinTaylorT4Template,
     "SpinTaylorT5": SpinTaylorT5Template,
     "SpinTaylorF2": SpinTaylorF2Template,
