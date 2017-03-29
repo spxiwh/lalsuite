@@ -487,8 +487,9 @@ if opts.trial_waveforms:
             c_idx = idx % 100000
             approx = hdf_fp['approximant'][c_idx]
             tmplt_class = waveforms[approx]
-            proposal.append(tmplt_class.from_dict(tmp, c_idx, bank,
-                                                  hdf_fp=wf_subd))
+            prop = tmplt_class.from_dict(tmp, c_idx, bank, hdf_fp=wf_subd)
+            prop.new_waveform_produced = True
+            proposal.append(prop)
         #hdf_fp.close()
 
 else:

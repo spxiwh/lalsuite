@@ -347,7 +347,6 @@ class AlignedSpinTemplate(object):
         if hasattr(self, 'storage_name'):
             new_tmplt['approximant'] = self.storage_name
         else:
-            print "NO STORAGE NAME"
             new_tmplt['approximant'] = self.approximant
         return new_tmplt
 
@@ -396,13 +395,22 @@ class AlignedSpinTemplate(object):
         # I'm hardcoding delta_T for waveform generation
         delta_t_gen = 1./8192
         if self.stored_td_waveform_hp is None:
-            hp, hc = lalsim.SimInspiralTD(
-                self.m1*MSUN_SI, self.m2*MSUN_SI, 0,
-                0, self.spin1z, 0, 0, self.spin2z,
-                1.e6*PC_SI, 0., 0.,
-                0., 0., 0.,
-                delta_t_gen, self.flow, self.flow,
-                None, approx)
+            if hasattr(self, 'spin1x'):
+                hp, hc = lalsim.SimInspiralTD(
+                    self.m1*MSUN_SI, self.m2*MSUN_SI, self.spin1x,
+                    self.spin1y, self.spin1z, self.spin2x, self.spin2y,
+                    self.spin2z, 1.e6*PC_SI, self.iota, self.orb_phase,
+                    0., 0., 0.,
+                    delta_t_gen, self.flow, self.flow,
+                    None, approx)
+            else:
+                hp, hc = lalsim.SimInspiralTD(
+                    self.m1*MSUN_SI, self.m2*MSUN_SI, 0,
+                    0, self.spin1z, 0, 0, self.spin2z,
+                    1.e6*PC_SI, 0., 0.,
+                    0., 0., 0.,
+                    delta_t_gen, self.flow, self.flow,
+                    None, approx)
             self.stored_td_waveform_hp = hp
             self.stored_td_waveform_hc = hc
         else:
@@ -456,7 +464,22 @@ class AlignedSpinTemplate(object):
                 if df % df_min:
                     raise ValueError("Do NOT change the value of df!!")
                 df_rat = int(df // df_min)
-                wf = self.wf_hdf_fp['waveform'][:][::df_rat]
+                try:
+                    wf = self.wf_hdf_fp['waveform'][:][::df_rat]
+                except KeyError:
+                    # Maybe I have hplus,hcross and the polarizations?
+                    if not hasattr(self, 'theta'):
+                        raise
+                    wf_hp = self.wf_hdf_fp['waveform_hp'][:][::df_rat]
+                    wf_hc = self.wf_hdf_fp['waveform_hp'][:][::df_rat]
+                    # FIXME: Project wants a FrequencySeries, so copying the
+                    #        whole thing to test.
+                    theta = self.theta
+                    phi = self.phi
+                    psi = self.psi
+                    Fp = 0.5*(1 + np.cos(theta)**2)*np.cos(2*phi)*np.cos(2*psi) - np.cos(theta)*np.sin(2*phi)*np.sin(2*psi)
+                    Fc = 0.5*(1 + np.cos(theta)**2)*np.cos(2*phi)*np.sin(2*psi) + np.cos(theta)*np.sin(2*phi)*np.cos(2*psi)
+                    wf = Fp*wf_hp + Fc*wf_hc
                 # This might be slow!
                 new_wf = lal.COMPLEX8FrequencySeries()
                 new_wf.deltaF = df
@@ -486,24 +509,24 @@ class AlignedSpinTemplate(object):
             return self._wf[df]
 
         # Is the waveform stored
-        stored_wf = self.get_waveform_from_hdf(df)
-        if stored_wf is not None:
-            return stored_wf
+        wf = self.get_waveform_from_hdf(df)
+        if wf is None:
+            self.new_waveform_produced = True
+            wf = self._compute_waveform(df, self.f_final)
+            if ASD is None:
+                ASD = PSD**0.5
+            if wf.data.length > len(ASD):
+                ASD2 = np.ones(wf.data.length) * np.inf
+                ASD2[:len(ASD)] = ASD
+                ASD = ASD2
+            arr_view = wf.data.data
 
-        self.new_waveform_produced = True
-        wf = self._compute_waveform(df, self.f_final)
-        if ASD is None:
-            ASD = PSD**0.5
-        if wf.data.length > len(ASD):
-            ASD2 = np.ones(wf.data.length) * np.inf
-            ASD2[:len(ASD)] = ASD
-            ASD = ASD2
+            # whiten
+            arr_view[:] /= ASD[:wf.data.length]
+            arr_view[:int(self.flow / df)] = 0.
+            arr_view[int(self.f_final/df) : wf.data.length] = 0.
+
         arr_view = wf.data.data
-
-        # whiten
-        arr_view[:] /= ASD[:wf.data.length]
-        arr_view[:int(self.flow / df)] = 0.
-        arr_view[int(self.f_final/df) : wf.data.length] = 0.
 
         # normalize
         self.sigmasq = compute_sigmasq(arr_view, df)
@@ -729,10 +752,12 @@ class PrecessingSpinTemplate(AlignedSpinTemplate):
          ('polarization', float32), ('inclination', float32),
          ('orbital_phase', float32)]
 
-    def __init__(self, m1, m2, spin1x, spin1y, spin1z, spin2x, spin2y, spin2z, theta, phi, iota, psi, orb_phase, bank, flow=None, duration=None):
+    def __init__(self, m1, m2, spin1x, spin1y, spin1z, spin2x, spin2y, spin2z, theta, phi, iota, psi, orb_phase, bank, flow=None, duration=None, template_hash=None, hdf_fp=None):
 
         AlignedSpinTemplate.__init__(self, m1, m2, spin1z, spin2z, bank,
-                                     flow=flow, duration=duration)
+                                     flow=flow, duration=duration,
+                                     template_hash=template_hash,
+                                     hdf_fp=hdf_fp)
         self.spin1x = float(spin1x)
         self.spin1y = float(spin1y)
         self.spin2x = float(spin2x)
@@ -849,28 +874,27 @@ class PrecessingSpinTemplate(AlignedSpinTemplate):
             # Is the waveform stored?
             try:
                 hp, hc = self.get_waveform_comps_from_hdf(df)
+                arr_view_hp = hp.data.data
+                arr_view_hc = hc.data.data
             except KeyError:
                 # Generate a new wf
                 hp, hc = self._compute_waveform_comps(df, self.f_final)
-            if ASD is None:
-                ASD = PSD**0.5
-            if hp.data.length > len(ASD):
-                err_msg = "waveform has length greater than ASD; cannot whiten"
-                raise ValueError(err_msg)
+                arr_view_hp = hp.data.data
+                arr_view_hc = hc.data.data
+                if ASD is None:
+                    ASD = PSD**0.5
+                if hp.data.length > len(ASD):
+                    err_msg = "waveform has length greater than ASD; cannot whiten"
+                    raise ValueError(err_msg)
 
-            # Some of this is not needed for stored waveforms, but I figure it
-            # won't matter in terms of overall comp. cost.
-            arr_view_hp = hp.data.data
-            arr_view_hc = hc.data.data
+                # Whiten
+                arr_view_hp[:] /= ASD[:hp.data.length]
+                arr_view_hp[:int(self.flow / df)] = 0.
+                arr_view_hp[int(self.f_final/df) : hp.data.length] = 0.
 
-            # Whiten
-            arr_view_hp[:] /= ASD[:hp.data.length]
-            arr_view_hp[:int(self.flow / df)] = 0.
-            arr_view_hp[int(self.f_final/df) : hp.data.length] = 0.
-
-            arr_view_hc[:] /= ASD[:hc.data.length]
-            arr_view_hc[:int(self.flow / df)] = 0.
-            arr_view_hc[int(self.f_final/df) : hc.data.length] = 0.
+                arr_view_hc[:] /= ASD[:hc.data.length]
+                arr_view_hc[:int(self.flow / df)] = 0.
+                arr_view_hc[int(self.f_final/df) : hc.data.length] = 0.
 
             # Get normalization factors and normalize
             self._hpsigmasq[df] = compute_sigmasq(arr_view_hp, df)
@@ -895,9 +919,10 @@ class PrecessingSpinTemplate(AlignedSpinTemplate):
         proposal = other.get_whitened_normalized(df, **kwargs)
 
         # maximize over sky position of template
-        return InspiralSBankComputeMatchMaxSkyLoc(hp, hc, hphccorr,
+        match_val = InspiralSBankComputeMatchMaxSkyLoc(hp, hc, hphccorr,
                                                   proposal, workspace_cache[0],
                                                   workspace_cache[1])
+        return match_val
 
     @classmethod
     def from_sngl(cls, sngl, bank):
@@ -920,9 +945,10 @@ class PrecessingSpinTemplate(AlignedSpinTemplate):
                    params['spin1z'][idx], params['spin2x'][idx],
                    params['spin2y'][idx], params['spin2z'][idx],
                    params['latitude'][idx], params['longitude'][idx],
-                   params['polarization'][idx], params['inclination'][idx],
+                   params['inclination'][idx], params['polarization'][idx],
                    params['orbital_phase'][idx], bank,
-                   flow=flow, duration=duration)
+                   flow=flow, duration=duration, hdf_fp=hdf_fp,
+                   template_hash=params['template_hash'][idx])
 
     def to_sngl(self):
         # All numerical values are initiated as 0 and all strings as ''
