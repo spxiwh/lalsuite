@@ -23,7 +23,8 @@ from numpy.random.mtrand import uniform
 from scipy.optimize import fsolve
 
 from glue.iterutils import choices
-from lal import PI, MTSUN_SI
+from lal import PI, MTSUN_SI, MSUN_SI
+import lalsimulation as lalsim
 
 #
 # functions for converting between m1-m2 and tau0-tau3 coords
@@ -576,6 +577,57 @@ def double_spin_precessing_param_generator(flow, tmplt_class, bank, **kwargs):
         yield tmplt_class(mass1, mass2, spin1x, spin1y, spin1z, spin2x, spin2y,
                           spin2z, theta, phi, iota, psi, orb_phase, bank=bank)
 
+def double_spin_precessing_grb_param_generator(flow, tmplt_class, bank,
+                                               max_jl_angle=10, **kwargs):
+    """
+    Currently a stub to test precessing template generation.
+    """
+    spin1_bounds = kwargs.pop('spin1', (0., 0.9))
+    spin2_bounds = kwargs.pop('spin2', (0., 0.9))
+
+    for mass1, mass2 in urand_tau0tau3_generator(flow, **kwargs):
+        # Choose the rest from hardcoded limits
+        spin1mag = uniform(*spin1_bounds)
+        spin2mag = uniform(*spin2_bounds)
+        spin1ang1 = uniform(0, numpy.pi)
+        spin1ang2 = uniform(0, 2*numpy.pi)
+        spin2ang1 = uniform(0, numpy.pi)
+        spin2ang2 = uniform(0, 2*numpy.pi)
+        spin1z = spin1mag * numpy.cos(spin1ang1)
+        spin1x = spin1mag * numpy.sin(spin1ang1) * numpy.cos(spin1ang2)
+        spin1y = spin1mag * numpy.sin(spin1ang1) * numpy.sin(spin1ang2)
+        spin2z = spin2mag * numpy.cos(spin2ang1)
+        spin2x = spin2mag * numpy.sin(spin2ang1) * numpy.cos(spin2ang2)
+        spin2y = spin2mag * numpy.sin(spin2ang1) * numpy.sin(spin2ang2)
+        # Check orientation angles use correct limits
+        eta = mass1 * mass2 / ((mass1+mass2) * (mass1+mass2))
+        theta = uniform(0, numpy.pi)
+        phi = uniform(0, 2*numpy.pi)
+        psi = uniform(0, 2*numpy.pi)
+        iota = uniform(0, numpy.pi)
+        orb_phase = uniform(0, 2*numpy.pi)
+        newinc, news1x, news1y, news1z, news2x, news2y, news2z = lalsim.SimInspiralInitialConditionsPrecessingApproxs(iota, spin1x, spin1y, spin1z, spin2x, spin2y, spin2z, mass1 * MSUN_SI, mass2 * MSUN_SI , flow, orb_phase, -1)
+        v0 = PI * flow * (mass1+mass2) * MTSUN_SI
+        LNorm = ((mass1+mass2)**2 * eta / v0)*(1. + v0*v0*(3./2. + eta/6.))
+        LNorm /= ((mass1+mass2)*(mass1+mass2))
+        Jx = LNorm*numpy.sin(newinc) + news1x * mass1*mass1 / ((mass1+mass2)*(mass1+mass2))
+        Jy = news1y * mass1 * mass1 / ((mass1+mass2)*(mass1+mass2))
+        Jz = LNorm*numpy.cos(newinc) + news1z * mass1*mass1 / ((mass1+mass2)*(mass1+mass2))
+        Jnorm = (Jx*Jx + Jy*Jy + Jz*Jz)**0.5
+        Jx /= Jnorm
+        Jy /= Jnorm
+        Jz /= Jnorm
+
+        ang = numpy.arccos(Jz)
+        if ang > numpy.pi/2:
+            ang = numpy.pi - ang
+        if ang > max_jl_angle * (numpy.pi / 180.):
+            continue
+
+        yield tmplt_class(mass1, mass2, spin1x, spin1y, spin1z, spin2x, spin2y,
+                          spin2z, theta, phi, iota, psi, orb_phase, bank=bank)
+
+
 def single_spin_precessing_param_generator(flow, tmplt_class, bank, **kwargs):
     """
     Currently a stub to test precessing template generation.
@@ -641,6 +693,7 @@ proposals = {"IMRPhenomB":IMRPhenomB_param_generator,
              "SEOBNRv4_opt" : aligned_spin_param_generator,
              "SEOBNRv4_ROM" : aligned_spin_param_generator,
              "SpinTaylorT2":double_spin_precessing_param_generator,
+             "SpinTaylorT2GRB":double_spin_precessing_grb_param_generator,
              "SpinTaylorT2Aligned": aligned_spin_param_generator,
              "SpinTaylorT4":double_spin_precessing_param_generator,
              "SpinTaylorF2":single_spin_precessing_param_generator,

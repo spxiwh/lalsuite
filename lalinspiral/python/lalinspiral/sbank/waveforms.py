@@ -1166,6 +1166,7 @@ waveforms = {
     "SEOBNRv4_ROM" : SEOBNRv4ROMTemplate,
     "EOBNRv2": EOBNRv2Template,
     "SpinTaylorT2": SpinTaylorT2Template,
+    "SpinTaylorT2GRB": SpinTaylorT2Template,
     "SpinTaylorT2Aligned": SpinTaylorT2AlignedTemplate,
     "SpinTaylorT4": SpinTaylorT4Template,
     "SpinTaylorT5": SpinTaylorT5Template,
