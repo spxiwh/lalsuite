@@ -24,7 +24,7 @@ np.seterr(all="ignore")
 
 import lal
 import lalsimulation as lalsim
-from lal import MSUN_SI, MTSUN_SI, PC_SI, PI, CreateREAL8Vector, CreateCOMPLEX8FrequencySeries
+from lal import MSUN_SI, MTSUN_SI, PC_SI, PI, CreateREAL8Vector, CreateCOMPLEX16FrequencySeries
 from lalinspiral import InspiralSBankComputeMatch, InspiralSBankComputeRealMatch, InspiralSBankComputeMatchMaxSkyLoc, InspiralSBankComputeMatchMaxSkyLocNoPhase
 from lalinspiral.sbank.psds import get_neighborhood_PSD, get_ASD
 from lalinspiral.sbank.tau0tau3 import m1m2_to_tau0tau3
@@ -96,7 +96,7 @@ def FrequencySeries_to_COMPLEX8FrequencySeries(fs):
     """
     Create a new COMPLEX8FrequencySeries and copy the results of the input FrequencySeries to it.
     """
-    new = CreateCOMPLEX8FrequencySeries(fs.name, fs.epoch, fs.f0, fs.deltaF, fs.sampleUnits, fs.data.length)
+    new = CreateCOMPLEX16FrequencySeries(fs.name, fs.epoch, fs.f0, fs.deltaF, fs.sampleUnits, fs.data.length)
     new.data.data[:] = fs.data.data[:]  # numpy automagic conversion
     return new
 

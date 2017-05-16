@@ -44,9 +44,9 @@ void XLALDestroySBankWorkspaceCache(WS *workspace_cache) {
     size_t k = MAX_NUM_WS;
     for (;k--;) {
         if (workspace_cache[k].n) {
-            XLALDestroyCOMPLEX8FFTPlan(workspace_cache[k].plan);
-            XLALDestroyCOMPLEX8Vector(workspace_cache[k].zf);
-            XLALDestroyCOMPLEX8Vector(workspace_cache[k].zt);
+            XLALDestroyCOMPLEX16FFTPlan(workspace_cache[k].plan);
+            XLALDestroyCOMPLEX16Vector(workspace_cache[k].zf);
+            XLALDestroyCOMPLEX16Vector(workspace_cache[k].zt);
         }
     }
     free(workspace_cache);
@@ -66,23 +66,23 @@ static WS *get_workspace(WS *workspace_cache, const size_t n) {
     }
 
     /* if n not in cache, ptr now points at first blank entry */
-    ptr->zf = XLALCreateCOMPLEX8Vector(n);
+    ptr->zf = XLALCreateCOMPLEX16Vector(n);
     CHECK_OOM(ptr->zf->data, "unable to allocate workspace array zf\n");
-    memset(ptr->zf->data, 0, n * sizeof(COMPLEX8));
+    memset(ptr->zf->data, 0, n * sizeof(COMPLEX16));
 
-    ptr->zt = XLALCreateCOMPLEX8Vector(n);
+    ptr->zt = XLALCreateCOMPLEX16Vector(n);
     CHECK_OOM(ptr->zf->data, "unable to allocate workspace array zt\n");
-    memset(ptr->zt->data, 0, n * sizeof(COMPLEX8));
+    memset(ptr->zt->data, 0, n * sizeof(COMPLEX16));
 
     ptr->n = n;
-    ptr->plan = XLALCreateReverseCOMPLEX8FFTPlan(n, 1);
+    ptr->plan = XLALCreateReverseCOMPLEX16FFTPlan(n, 1);
     CHECK_OOM(ptr->plan, "unable to allocate plan");
 
     return ptr;
 }
 
 /* by default, complex arithmetic will call built-in function __muldc3, which does a lot of error checking for inf and nan; just do it manually */
-static void multiply_conjugate(COMPLEX8 * restrict out, COMPLEX8 *a, COMPLEX8 *b, const size_t size) {
+static void multiply_conjugate(COMPLEX16 * restrict out, COMPLEX16 *a, COMPLEX16 *b, const size_t size) {
     size_t k = 0;
     for (;k < size; ++k) {
         const float ar = crealf(a[k]);
@@ -94,12 +94,12 @@ static void multiply_conjugate(COMPLEX8 * restrict out, COMPLEX8 *a, COMPLEX8 *b
     }
 }
 
-static double abs_real(const COMPLEX8 x) {
+static double abs_real(const COMPLEX16 x) {
     const REAL8 re = crealf(x);
     return re;
 }
 
-static double abs2(const COMPLEX8 x) {
+static double abs2(const COMPLEX16 x) {
     const REAL8 re = crealf(x);
     const REAL8 im = cimagf(x);
     return re * re + im * im;
@@ -114,9 +114,9 @@ static double vector_peak_interp(const double ym1, const double y, const double 
 
 /*
  * Returns the match for two whitened, normalized, positive-frequency
- * COMPLEX8FrequencySeries inputs.
+ * COMPLEX16FrequencySeries inputs.
  */
-REAL8 XLALInspiralSBankComputeMatch(const COMPLEX8FrequencySeries *inj, const COMPLEX8FrequencySeries *tmplt, WS *workspace_cache) {
+REAL8 XLALInspiralSBankComputeMatch(const COMPLEX16FrequencySeries *inj, const COMPLEX16FrequencySeries *tmplt, WS *workspace_cache) {
     size_t min_len = (inj->data->length <= tmplt->data->length) ? inj->data->length : tmplt->data->length;
 
     /* get workspace for + and - frequencies */
@@ -131,10 +131,10 @@ REAL8 XLALInspiralSBankComputeMatch(const COMPLEX8FrequencySeries *inj, const CO
     /* Note that findchirp paper eq 4.2 defines a positive-frequency integral,
        so we should only fill the positive frequencies (first half of zf). */
     multiply_conjugate(ws->zf->data, inj->data->data, tmplt->data->data, min_len);
-    XLALCOMPLEX8VectorFFT(ws->zt, ws->zf, ws->plan); /* plan is reverse */
+    XLALCOMPLEX16VectorFFT(ws->zt, ws->zf, ws->plan); /* plan is reverse */
 
     /* maximize over |z(t)|^2 */
-    COMPLEX8 *zdata = ws->zt->data;
+    COMPLEX16 *zdata = ws->zt->data;
     size_t k = n;
     ssize_t argmax = -1;
     REAL8 max = 0.;
@@ -165,7 +165,7 @@ REAL8 XLALInspiralSBankComputeMatch(const COMPLEX8FrequencySeries *inj, const CO
   normalized signal proposal maximizing over the template h's overall
   amplitude. This is the most basic match function one can compute.
 */
-REAL8 XLALInspiralSBankComputeRealMatch(const COMPLEX8FrequencySeries *inj, const COMPLEX8FrequencySeries *tmplt, WS *workspace_cache) {
+REAL8 XLALInspiralSBankComputeRealMatch(const COMPLEX16FrequencySeries *inj, const COMPLEX16FrequencySeries *tmplt, WS *workspace_cache) {
     size_t min_len = (inj->data->length <= tmplt->data->length) ? inj->data->length : tmplt->data->length;
 
     /* get workspace for + and - frequencies */
@@ -180,10 +180,10 @@ REAL8 XLALInspiralSBankComputeRealMatch(const COMPLEX8FrequencySeries *inj, cons
     /* Note that findchirp paper eq 4.2 defines a positive-frequency integral,
        so we should only fill the positive frequencies (first half of zf). */
     multiply_conjugate(ws->zf->data, inj->data->data, tmplt->data->data, min_len);
-    XLALCOMPLEX8VectorFFT(ws->zt, ws->zf, ws->plan); /* plan is reverse */
+    XLALCOMPLEX16VectorFFT(ws->zt, ws->zf, ws->plan); /* plan is reverse */
 
     /* maximize over |Re z(t)| */
-    COMPLEX8 *zdata = ws->zt->data;
+    COMPLEX16 *zdata = ws->zt->data;
     size_t k = n;
     REAL8 max = 0.;
     for (;k--;) {
@@ -204,7 +204,7 @@ REAL8 XLALInspiralSBankComputeRealMatch(const COMPLEX8FrequencySeries *inj, cons
   cross polarization hp and hc are both normalized to unity and that
   hphccorr is the correlation between these normalized components.
  */
-REAL8 XLALInspiralSBankComputeMatchMaxSkyLoc(const COMPLEX8FrequencySeries *hp, const COMPLEX8FrequencySeries *hc, const REAL8 hphccorr, const COMPLEX8FrequencySeries *proposal, WS *workspace_cache1, WS *workspace_cache2) {
+REAL8 XLALInspiralSBankComputeMatchMaxSkyLoc(const COMPLEX16FrequencySeries *hp, const COMPLEX16FrequencySeries *hc, const REAL8 hphccorr, const COMPLEX16FrequencySeries *proposal, WS *workspace_cache1, WS *workspace_cache2) {
 
     /* FIXME: Add sanity checking for consistency of lengths in input */
     /* What does this do? */
@@ -228,9 +228,9 @@ REAL8 XLALInspiralSBankComputeMatchMaxSkyLoc(const COMPLEX8FrequencySeries *hp, 
     /* Note that findchirp paper eq 4.2 defines a positive-frequency integral,
        so we should only fill the positive frequencies (first half of zf). */
     multiply_conjugate(ws1->zf->data, hp->data->data, proposal->data->data, min_len);
-    XLALCOMPLEX8VectorFFT(ws1->zt, ws1->zf, ws1->plan); /* plan is reverse */
+    XLALCOMPLEX16VectorFFT(ws1->zt, ws1->zf, ws1->plan); /* plan is reverse */
     multiply_conjugate(ws2->zf->data, hc->data->data, proposal->data->data, min_len);
-    XLALCOMPLEX8VectorFFT(ws2->zt, ws2->zf, ws2->plan);
+    XLALCOMPLEX16VectorFFT(ws2->zt, ws2->zf, ws2->plan);
 
 
     /* COMPUTE DETECTION STATISTIC */
@@ -244,14 +244,14 @@ REAL8 XLALInspiralSBankComputeMatchMaxSkyLoc(const COMPLEX8FrequencySeries *hp, 
     }
 
     /* Now the tricksy bit as we loop over time*/
-    COMPLEX8 *hpdata = ws1->zt->data;
-    COMPLEX8 *hcdata = ws2->zt->data;
+    COMPLEX16 *hpdata = ws1->zt->data;
+    COMPLEX16 *hcdata = ws2->zt->data;
     size_t k = n;
     /* FIXME: This is needed if we turn back on peak refinement. */
     /*ssize_t argmax = -1;*/
     REAL8 max = 0.;
     for (;k--;) {
-        COMPLEX8 ratio = hcdata[k] / hpdata[k];
+        COMPLEX16 ratio = hcdata[k] / hpdata[k];
         REAL8 ratio_real = creal(ratio);
         REAL8 ratio_imag = cimag(ratio);
         REAL8 beta = 2 * ratio_real;
@@ -281,7 +281,7 @@ REAL8 XLALInspiralSBankComputeMatchMaxSkyLoc(const COMPLEX8FrequencySeries *hp, 
     return 4. * proposal->deltaF * sqrt(max);
 }
 
-REAL8 XLALInspiralSBankComputeMatchMaxSkyLocNoPhase(const COMPLEX8FrequencySeries *hp, const COMPLEX8FrequencySeries *hc, const REAL8 hphccorr, const COMPLEX8FrequencySeries *proposal, WS *workspace_cache1, WS *workspace_cache2) {
+REAL8 XLALInspiralSBankComputeMatchMaxSkyLocNoPhase(const COMPLEX16FrequencySeries *hp, const COMPLEX16FrequencySeries *hc, const REAL8 hphccorr, const COMPLEX16FrequencySeries *proposal, WS *workspace_cache1, WS *workspace_cache2) {
     /* FIXME: Add sanity checking for consistency of lengths in input */
 
     /* What does this do? */
@@ -305,9 +305,9 @@ REAL8 XLALInspiralSBankComputeMatchMaxSkyLocNoPhase(const COMPLEX8FrequencySerie
     /* Note that findchirp paper eq 4.2 defines a positive-frequency integral,
        so we should only fill the positive frequencies (first half of zf). */
     multiply_conjugate(ws1->zf->data, hp->data->data, proposal->data->data, min_len);
-    XLALCOMPLEX8VectorFFT(ws1->zt, ws1->zf, ws1->plan); /* plan is reverse */
+    XLALCOMPLEX16VectorFFT(ws1->zt, ws1->zf, ws1->plan); /* plan is reverse */
     multiply_conjugate(ws2->zf->data, hc->data->data, proposal->data->data, min_len);
-    XLALCOMPLEX8VectorFFT(ws2->zt, ws2->zf, ws2->plan);
+    XLALCOMPLEX16VectorFFT(ws2->zt, ws2->zf, ws2->plan);
 
 
     /* COMPUTE DETECTION STATISTIC */
@@ -320,8 +320,8 @@ REAL8 XLALInspiralSBankComputeMatchMaxSkyLocNoPhase(const COMPLEX8FrequencySerie
     }
 
     /* Now the tricksy bit as we loop over time*/
-    COMPLEX8 *hpdata = ws1->zt->data;
-    COMPLEX8 *hcdata = ws2->zt->data;
+    COMPLEX16 *hpdata = ws1->zt->data;
+    COMPLEX16 *hcdata = ws2->zt->data;
     size_t k = n;
     /* FIXME: This is needed if we turn back on peak refinement. */
     /*ssize_t argmax = -1;*/
