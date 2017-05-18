@@ -205,6 +205,8 @@ class Bank(object):
                     raise ValueError(err_msg)
 
                 if (1 - match) > 0.05 + (1 - min_match):
+                    tmplt.stored_td_waveform_hp = None
+                    tmplt.stored_td_waveform_hc = None
                     continue
 
             while df >= df_end:
@@ -232,12 +234,20 @@ class Bank(object):
                 df /= 2.0
 
             if match > min_match:
+                tmplt.stored_td_waveform_hp = None
+                tmplt.stored_td_waveform_hc = None
+                proposal.stored_td_waveform_hp = None
+                proposal.stored_td_waveform_hc = None
                 return (match, tmplt)
 
             # record match and template params for highest match
             if match > max_match:
                 max_match = match
                 template = tmplt
+            tmplt.stored_td_waveform_hp = None
+            tmplt.stored_td_waveform_hc = None
+        proposal.stored_td_waveform_hp = None
+        proposal.stored_td_waveform_hc = None
 
         return (max_match, template)
 
