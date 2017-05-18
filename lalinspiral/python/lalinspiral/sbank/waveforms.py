@@ -183,15 +183,7 @@ class AlignedSpinTemplate(object):
         self.chieff = lalsim.SimIMRPhenomBComputeChi(self.m1, self.m2,
                                                      self.spin1z, self.spin2z)
         self.bank = bank
-
-        if flow is None:
-            self.flow = bank.flow
-            if bank.optimize_flow is not None:
-                self.optimize_flow(bank.flow, bank.fhigh_max, bank.noise_model,
-                                   sigma_frac=bank.optimize_flow)
-        else:
-            self.flow = flow
-
+        self._flow = flow
         self._wf = {}
         self._metric = None
         self.sigmasq = 0.
@@ -201,7 +193,7 @@ class AlignedSpinTemplate(object):
         self._f_final = None
         self._fhigh_max = bank.fhigh_max
 
-    def optimize_flow(self, flow_min, fhigh_max, noise_model, df=0.1,
+    def optimize_flow(self, flow_min, fhigh_max, noise_model, df=1./8.,
                       sigma_frac=0.99):
         """Set the template's flow as high as possible but still recovering
         at least the given fraction of the template's sigma when calculated
@@ -224,7 +216,7 @@ class AlignedSpinTemplate(object):
         ref_sigmasq = integral[-1]
         # find the frequency bin corresponding to the target loss
         i = np.searchsorted(integral, ref_sigmasq * sigma_frac ** 2)
-        self.flow = (len(integral) - i) * df
+        return (len(integral) - i) * df
 
     @property
     def params(self):
@@ -251,6 +243,21 @@ class AlignedSpinTemplate(object):
     @dur.setter
     def dur(self, new_val):
         self._dur = new_val
+
+    @property
+    def flow(self):
+        if self._flow is None:
+            if self.bank.optimize_flow is not None:
+                self._flow = self.optimize_flow\
+                    (self.bank.flow, self.bank.fhigh_max,
+                     self.bank.noise_model, sigma_frac=self.bank.optimize_flow)
+            else:
+                self._flow = self.bank.flow
+        return self._flow
+
+    @flow.setter
+    def flow(self, new_val):
+        self._flow = new_val
 
     def _get_isco_f_final(self):
         return 6**-1.5 / (PI * (self.m1 + self.m2) * MTSUN_SI)  # ISCO
@@ -326,7 +333,10 @@ class AlignedSpinTemplate(object):
         new_tmplt['spin2z'] = self.spin2z
         new_tmplt['template_duration'] = self.dur
         new_tmplt['f_lower'] = self.flow
-        new_tmplt['approximant'] = self.approximant
+        if hasattr(self, 'storage_name'):
+            new_tmplt['approximant'] = self.storage_name
+        else:
+            new_tmplt['approximant'] = self.approximant
         return new_tmplt
 
     def __repr__(self):
@@ -503,6 +513,9 @@ class SEOBNRv4Template(IMRAlignedSpinTemplate):
                 self.spin1z, self.spin2z)
         # Allow a 10% margin of error
         return dur * 1.1
+
+class SEOBNRv4OptTemplate(SEOBNRv4Template):
+    approximant = "SEOBNRv4_opt"
 
 class SEOBNRv4ROMTemplate(SEOBNRv4Template):
     approximant = "SEOBNRv4_ROM"
@@ -744,7 +757,7 @@ class PrecessingSpinTemplate(AlignedSpinTemplate):
                    params['spin1z'][idx], params['spin2x'][idx],
                    params['spin2y'][idx], params['spin2z'][idx],
                    params['latitude'][idx], params['longitude'][idx],
-                   params['polarization'][idx], params['inclination'][idx],
+                   params['inclination'][idx], params['polarization'][idx],
                    params['orbital_phase'][idx], bank,
                    flow=flow, duration=duration)
 
@@ -878,6 +891,13 @@ class SpinTaylorF2Template(InspiralPrecessingSpinTemplate):
 class SpinTaylorT2FourierTemplate(InspiralPrecessingSpinTemplate):
     approximant = "SpinTaylorT2Fourier"
 
+class SpinTaylorT2Template(InspiralPrecessingSpinTemplate):
+    approximant = "SpinTaylorT2"
+
+class SpinTaylorT2AlignedTemplate(InspiralAlignedSpinTemplate):
+    approximant = "SpinTaylorT2"
+    storage_name = "SpinTaylorT2Aligned"
+
 class SpinTaylorT4Template(InspiralPrecessingSpinTemplate):
     approximant = "SpinTaylorT4"
 
@@ -924,6 +944,7 @@ class EOBNRHigherOrderModeTemplate(IMRPrecessingSpinTemplate,
 class EOBNRHigherOrderModeAmpMaxTemplate(IMRPrecessingSpinTemplate):
     """Class for EOBNRHM templates."""
     approximant = "EOBNRv2HM_ROM"
+    storage_name = "EOBNRv2HM_ROM_AmpMax"
     def brute_match(self, other, df, workspace_cache, **kwargs):
 
         tmplt =  self.get_whitened_normalized(df, **kwargs)
@@ -937,6 +958,7 @@ class EOBNRHigherOrderModeAmpMaxTemplate(IMRPrecessingSpinTemplate):
 class EOBNRHigherOrderModePhaseMaxTemplate(IMRPrecessingSpinTemplate):
     """Class for EOBNRHM templates."""
     approximant = "EOBNRv2HM_ROM"
+    storage_name = "EOBNRv2HM_ROM_PhaseMax"
 
 
 waveforms = {
@@ -951,8 +973,11 @@ waveforms = {
     "SEOBNRv2_ROM_DoubleSpin": SEOBNRv2ROMDoubleSpinTemplate,
     "SEOBNRv2_ROM_DoubleSpin_HI": SEOBNRv2ROMDoubleSpinHITemplate,
     "SEOBNRv4" : SEOBNRv4ROMTemplate,
+    "SEOBNRv4_opt" : SEOBNRv4OptTemplate,
     "SEOBNRv4_ROM" : SEOBNRv4ROMTemplate,
     "EOBNRv2": EOBNRv2Template,
+    "SpinTaylorT2": SpinTaylorT2Template,
+    "SpinTaylorT2Aligned": SpinTaylorT2AlignedTemplate,
     "SpinTaylorT4": SpinTaylorT4Template,
     "SpinTaylorT5": SpinTaylorT5Template,
     "SpinTaylorF2": SpinTaylorF2Template,
