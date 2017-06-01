@@ -616,7 +616,7 @@ class PrecessingSpinTemplate(AlignedSpinTemplate):
         [('spin1x', float32), ('spin1y', float32), ('spin2x', float32),
          ('spin2y', float32), ('latitude', float32), ('longitude', float32),
          ('polarization', float32), ('inclination', float32),
-         ('orbital_phase', float32)]
+         ('coa_phase', float32)]
 
     def __init__(self, m1, m2, spin1x, spin1y, spin1z, spin2x, spin2y, spin2z, theta, phi, iota, psi, orb_phase, bank, flow=None, duration=None):
 
@@ -758,7 +758,7 @@ class PrecessingSpinTemplate(AlignedSpinTemplate):
                    params['spin2y'][idx], params['spin2z'][idx],
                    params['latitude'][idx], params['longitude'][idx],
                    params['inclination'][idx], params['polarization'][idx],
-                   params['orbital_phase'][idx], bank,
+                   params['coa_phase'][idx], bank,
                    flow=flow, duration=duration)
 
     def to_sngl(self):
@@ -798,7 +798,7 @@ class PrecessingSpinTemplate(AlignedSpinTemplate):
         new_tmplt['longitude'] = self.phi
         new_tmplt['polarization'] = self.psi
         new_tmplt['inclination'] = self.iota
-        new_tmplt['orbital_phase'] = self.orb_phase
+        new_tmplt['coa_phase'] = self.orb_phase
         return new_tmplt
 
 class IMRPrecessingSpinTemplate(PrecessingSpinTemplate):
