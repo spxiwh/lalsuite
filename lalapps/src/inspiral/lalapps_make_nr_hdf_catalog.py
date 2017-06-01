@@ -103,7 +103,11 @@ for count, inj in enumerate(inj_list):
         curr_sim.eta = 0.25
     # Populate spins columns with spins in LAL frame! Need to be
     # transformed from NR frame
-    spins = SimInspiralNRWaveformGetSpinsFromHDF5File(inj)
+    curr_sim.f_lower = f.attrs['f_lower_at_1MSUN']
+    f.close()
+    mtotal = curr_sim.mass1+curr_sim.mass2
+    spins = SimInspiralNRWaveformGetSpinsFromHDF5File\
+        (inj, curr_sim.f_lower / mtotal, mtotal)
     curr_sim.spin1x = spins[0]
     curr_sim.spin1y = spins[1]
     curr_sim.spin1z = spins[2]
@@ -111,8 +115,6 @@ for count, inj in enumerate(inj_list):
     curr_sim.spin2y = spins[4]
     curr_sim.spin2z = spins[5]
 
-    curr_sim.f_lower = f.attrs['f_lower_at_1MSUN']
-    f.close()
     # These were the old columns used to specify min and max *l* modes in NINJA
     # not using them here as they ignore *m* modes.
     #curr_sim.numrel_mode_max = 0
